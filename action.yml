@@ -16,6 +16,11 @@ inputs:
     description: "Order in which to execute the playbooks (comma-separated list of folder names)"
     required: true
 
+  inventory_file_path:
+    description: "The complete path to the hosts.cfg file, for example /home/runner/hosts.cfg"
+    required: true
+    default: "/ansible/hosts.cfg"
+
   ## Optional
 
 #  requirements:

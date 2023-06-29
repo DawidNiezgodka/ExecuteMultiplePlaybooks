@@ -1,0 +1,13 @@
+- name: Test run action
+  hosts: all
+  tasks:
+    - name: Count the number of files and folders
+      command: ls -l {{playbook_dir}}/../.. | wc -l
+      register: file_count
+      vars:
+        playbook_dir: "{{ lookup('env','PWD') }}"
+
+    - name: Print the number of files and folders
+      debug:
+        msg: "The number of files and folders is {{ file_count.stdout }}"
+

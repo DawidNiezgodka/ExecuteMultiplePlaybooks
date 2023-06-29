@@ -12,7 +12,7 @@ async function run() {
     const playbookDir = core.getInput('playbook_directory', { required: true });
     const privateKeyPath = core.getInput('private_key_path', { required: true });
     const executionOrder = core.getInput('execution_order', { required: true })
-
+    const inventory = core.getInput('inventory', { required: true });
 
     // TODO: handle requirements JSON
     // setup -> setup_requirements.yml
@@ -41,7 +41,8 @@ async function run() {
       // to the given phase's logic
       const currentPlaybook = path.join(playbookDir, playbook, 'main.yml');
       // ./playbook_dir/phase_dir/main.yml
-      let cmd = prepareCommand(currentPlaybook, privateKeyPath, extraOptions, sudo);
+      let cmd = prepareCommand(currentPlaybook, privateKeyPath, inventory,
+          extraOptions, sudo);
 
       let currOutput = '';
       await exec.exec(cmd, null, {
@@ -71,12 +72,13 @@ function convertExeOrderStrToArray(executionOrder) {
 
 async function extractPhaseDirs(mainDirPath) {
     const directories = await fs.readdir(mainDirPath, { withFileTypes: true });
+    // Dirent[] -> String[]
     return directories
         .filter(dirent => dirent.isDirectory())
         .map(dirent => dirent.name);
 }
 
-// [String] -> [String] -> ()
+// [String] -> [String] -> Boolean
 // First, check if the number of elements in the execution order array
 // matches the number of phase directories.
 // Then, check whether there is a match
@@ -95,12 +97,15 @@ function isOrderIdentical(arr1, arr2) {
 }
 
 
-async function prepareCommand(playbook, privateKeyPath, galaxyRequirements,
+function prepareCommand(playbook, privateKeyPath, inventory,
                         extraOptions, sudo) {
   let commandComponents = ["ansible-playbook", playbook]
 
   // set private key
   commandComponents.push(`--private-key ${privateKeyPath}`)
+
+  // set inventory
+  commandComponents.push(`-i ${inventory}`)
 
   // replaces all newline characters with a single space (\g replaces all occurrences)
   if (extraOptions) {

@@ -1,0 +1,13 @@
+- name: Test setup action
+  hosts: all
+  tasks:
+    - name: Create a text file
+      ansible.builtin.copy:
+        dest: "{{ ansible_playbook_python | dirname }}/hello.txt"
+        content: "Hello world from the setup folder"
+        mode: '0644'
+    - name: Install cowsay
+      become: yes
+      apt:
+        name: cowsay
+        update_cache: yes
