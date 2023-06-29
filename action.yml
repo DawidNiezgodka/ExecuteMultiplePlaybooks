@@ -1,13 +1,42 @@
-name: 'Wait'
-description: 'Wait a designated number of milliseconds'
+name: "Run multiple Ansible playbooks"
+description: "Run Ansible playbooks in phase that represent setup order"
+
 inputs:
-  milliseconds:  # id of input
-    description: 'number of milliseconds to wait'
+  ## Required
+  playbook_directory:
+    description: "Directory where playbook subfolders are located"
     required: true
-    default: '1000'
+    default: "/ansible/playbooks"
+
+  private_key_path:
+    description: "The complete path to the private key, for example /home/runner/.ssh/key"
+    required: true
+
+  execution_order:
+    description: "Order in which to execute the playbooks (comma-separated list of folder names)"
+    required: true
+
+  ## Optional
+
+#  requirements:
+#    description: JSON string mapping playbook names to galaxy requirement
+#    required: false
+
+  extra_options:
+    description: Extra options that are passed to playbook command,
+      for example --extra-vars or --inventory
+    required: false
+
+  sudo:
+    description: Whether to use sudo for executing commands
+    required: false
+    default: 'false'
+
 outputs:
-  time: # output will be available to future steps
-    description: 'The current time after waiting'
+  results:
+    description: "output from each playbook run in JSON format"
+
 runs:
-  using: 'node16'
-  main: 'dist/index.js'
+  using: "node16"
+  main: "index.js"
+  #post: "post.js"
