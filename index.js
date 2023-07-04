@@ -2,6 +2,7 @@ const core = require('@actions/core');
 const exec = require('@actions/exec');
 const fs = require('fs').promises;
 const path = require('path');
+const os = require('os');
 
 // The logic for running a single playbook is based on
 // the idea presented in dawidd6/action-ansible-playbook
@@ -9,17 +10,27 @@ const path = require('path');
 async function run() {
   try {
     // Read required inputs
+    const ansible_dir = core.getInput('ansible_directory', { required: true });
     const playbookDir = core.getInput('playbook_directory', { required: true });
-    const privateKeyPath = core.getInput('private_key_path', { required: true });
-    const executionOrder = core.getInput('execution_order', { required: true })
-    const inventory = core.getInput('inventory', { required: true });
+    const executionOrder = core.getInput('execution_order', { required: true });
+
 
     // TODO: handle requirements JSON
     // setup -> setup_requirements.yml
     // preload -> preload_requirements.yml etc
     // const requirements = JSON.parse(core.getInput('requirements'));
+    const privateKey = core.getInput('private_key');
+    const inventory = core.getInput('inventory');
+    const knownHosts = core.getInput('known_hosts');
     const extraOptions = core.getInput('extra_options');
     const sudo = core.getInput('sudo');
+
+
+    if (path.resolve(ansible_dir) !== path.resolve(process.cwd())) {
+      process.chdir(ansible_dir);
+      core.saveState("ansible_directory", ansible_dir);
+    }
+
 
     // Split the execution order string into an array
     // Example: "a, b,   c" -> ["a", "b", "c"]
@@ -36,13 +47,13 @@ async function run() {
     }
 
     const results = {};
-    for (const playbook of executionOrder) {
+    for (const playbook of exeOrderArr) {
       // Assumption: Each subdirectory contains a main.yml playbook which is the entrypoint
       // to the given phase's logic
       const currentPlaybook = path.join(playbookDir, playbook, 'main.yml');
       // ./playbook_dir/phase_dir/main.yml
-      let cmd = prepareCommand(currentPlaybook, privateKeyPath, inventory,
-          extraOptions, sudo);
+      let cmd = prepareCommand(currentPlaybook, privateKey, inventory,
+          knownHosts, extraOptions, sudo);
 
       let currOutput = '';
       await exec.exec(cmd, null, {
@@ -67,7 +78,7 @@ async function run() {
 
 // String -> [String]
 function convertExeOrderStrToArray(executionOrder) {
-  return executionOrder.split(',').map(item => item.trim());
+  return executionOrder ? executionOrder.split(',').map(item => item.trim()) : [];
 }
 
 async function extractPhaseDirs(mainDirPath) {
@@ -97,15 +108,29 @@ function isOrderIdentical(arr1, arr2) {
 }
 
 
-function prepareCommand(playbook, privateKeyPath, inventory,
-                        extraOptions, sudo) {
+function prepareCommand(playbook, privateKey, inventory,
+                        knownHosts, extraOptions, sudo) {
+
   let commandComponents = ["ansible-playbook", playbook]
 
   // set private key
-  commandComponents.push(`--private-key ${privateKeyPath}`)
+  handleOptionalFile(privateKey, ".ansible_private_key", "--private-key", commandComponents);
+
+  //commandComponents.push(`--private-key ${privateKey}`)
 
   // set inventory
-  commandComponents.push(`-i ${inventory}`)
+  handleOptionalFile(inventory, ".ansible_inventory", "-i", commandComponents);
+  //commandComponents.push(`-i ${inventory}`)
+
+  if (knownHosts) {
+    const knownHostsFile = ".ansible_known_hosts"
+    fs.writeFile(knownHostsFile, knownHosts, { mode: 0o600})
+    core.saveState("knownHostsFile", knownHostsFile)
+    commandComponents.push(`--ssh-common-args="-o UserKnownHostsFile=${knownHostsFile}"`)
+    process.env.ANSIBLE_HOST_KEY_CHECKING = "True"
+  } else {
+    process.env.ANSIBLE_HOST_KEY_CHECKING = "False"
+  }
 
   // replaces all newline characters with a single space (\g replaces all occurrences)
   if (extraOptions) {
@@ -122,4 +147,23 @@ function prepareCommand(playbook, privateKeyPath, inventory,
   return commandComponents.join(" ")
 }
 
+
+function handleOptionalFile(inputFile, outputFileName, flagName, commandComponents) {
+  if (inputFile) {
+    const file = `.${outputFileName}`;
+    fs.writeFile(file, file + os.EOL, { mode: 0o700 });
+    core.saveState(outputFileName, file);
+    commandComponents.push(`--${flagName}`);
+    commandComponents.push(file);
+  }
+}
+
 run();
+
+module.exports = {
+    convertExeOrderStrToArray,
+    extractPhaseDirs,
+    isOrderIdentical,
+    prepareCommand,
+    run
+};

@@ -1,25 +1,26 @@
-name: "units-test"
+name: Test Action
+
 on:
-  pull_request:
   push:
     branches:
       - main
-      - 'releases/*'
+
 
 jobs:
-  # unit tests
-  units:
+  remote:
     runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v3
-    - run: npm ci
-    - run: npm test
+    env:
+      SSH_PUBLIC_KEY: |
+        ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAAAgQC81OATMx00RzgqJY1LPvErUYDwYuTY1udV8XVs4J6qr+QQct52YfYxiQo6ZCmBQM12mnO1U7Jx52hmTiIE0OmDoUiHRmXJGpL+SlonQ2ACCcJ2cOsT5nGj6pPb+mu/AVCa2XprL9QhotAvMQEWyiwlwL9gTAHDJZvTu4SWV29hcw==
 
-  # test action works running from the graph
-  test:
-    runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
-    - uses: ./
-      with:
-        milliseconds: 1000
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: test
+        uses: ./
+        with:
+          ansible_directory: ./ansibletest
+          playbook_directory: /playbooks
+          inventory_file_path: /hosts.cfg
+          private_key: ${{secrets.PK}}
+          execution_order: setup,run

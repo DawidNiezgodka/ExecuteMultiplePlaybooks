@@ -3,23 +3,22 @@ description: "Run Ansible playbooks in phase that represent setup order"
 
 inputs:
   ## Required
-  playbook_directory:
-    description: "Directory where playbook subfolders are located"
+  ansible_directory:
+    description: Directory where Ansible files are located.
     required: true
-    default: "/ansible/playbooks"
 
-  private_key_path:
-    description: "The complete path to the private key, for example /home/runner/.ssh/key"
+  playbook_directory:
+    description: | 
+      Directory where playbook subfolders are located.
+      Assumes that playbooks are located in the dir pointed to by ansible_directory.
     required: true
+    default: "/playbooks"
 
   execution_order:
-    description: "Order in which to execute the playbooks (comma-separated list of folder names)"
+    description: Order in which to execute the playbooks (comma-separated list of folder names).
     required: true
 
-  inventory_file_path:
-    description: "The complete path to the hosts.cfg file, for example /home/runner/hosts.cfg"
-    required: true
-    default: "/ansible/hosts.cfg"
+
 
   ## Optional
 
@@ -27,8 +26,24 @@ inputs:
 #    description: JSON string mapping playbook names to galaxy requirement
 #    required: false
 
+  private_key:
+    description: The private key for running Ansible commands.
+    required: false
+
+  inventory_file_path:
+    description: |
+      The path to the inventory file.
+      Assumes that the file is located in the dir pointed to by ansible_directory.
+    required: false
+    default: "/hosts.cfg"
+
+  known_hosts:
+    description: Content of the known hosts. If not provided, the host key checking is disabled.
+    required: false
+
   extra_options:
-    description: Extra options that are passed to playbook command,
+    description: |
+      Extra options that are passed to playbook command,
       for example --extra-vars or --inventory
     required: false
 
@@ -39,9 +54,9 @@ inputs:
 
 outputs:
   results:
-    description: "output from each playbook run in JSON format"
+    description: Output from each playbook run in JSON format.
 
 runs:
   using: "node16"
   main: "index.js"
-  #post: "post.js"
+  post: "post.js"
