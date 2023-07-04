@@ -35,7 +35,6 @@ inputs:
       The path to the inventory file.
       Assumes that the file is located in the dir pointed to by ansible_directory.
     required: false
-    default: "hosts.cfg"
 
   known_hosts:
     description: Content of the known hosts. If not provided, the host key checking is disabled.
