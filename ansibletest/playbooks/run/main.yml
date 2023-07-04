@@ -2,7 +2,7 @@
   hosts: all
   tasks:
     - name: Count the number of files and folders
-      command: ls -l {{playbook_dir}}/../.. | wc -l
+      command: ls -l {{playbook_dir}} | wc -l
       register: file_count
       vars:
         playbook_dir: "{{ lookup('env','PWD') }}"
