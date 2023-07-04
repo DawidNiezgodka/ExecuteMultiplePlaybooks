@@ -20,11 +20,10 @@ async function run() {
     // preload -> preload_requirements.yml etc
     // const requirements = JSON.parse(core.getInput('requirements'));
     const privateKey = core.getInput('private_key');
-    const inventory = core.getInput('inventory');
+    const inventory = core.getInput('inventory_file_path');
     const knownHosts = core.getInput('known_hosts');
     const extraOptions = core.getInput('extra_options');
     const sudo = core.getInput('sudo');
-
 
     if (path.resolve(ansible_dir) !== path.resolve(process.cwd())) {
       console.log(`Changing directory to ${ansible_dir}`)
