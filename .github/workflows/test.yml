@@ -21,6 +21,6 @@ jobs:
         with:
           ansible_directory: ./ansibletest
           playbook_directory: playbooks
-          inventory_file_path: /hosts.cfg
+          inventory_file_path: hosts.cfg
           private_key: ${{secrets.PK}}
           execution_order: setup,run
