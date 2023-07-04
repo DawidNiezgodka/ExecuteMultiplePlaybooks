@@ -36,11 +36,12 @@ async function run() {
     // Split the execution order string into an array
     // Example: "a, b,   c" -> ["a", "b", "c"]
     const exeOrderArr = convertExeOrderStrToArray(executionOrder);
+    console.log(`Execution order: ${exeOrderArr}`)
 
     // Extract the subdirectories of the playbook directory
     // Each subdirectory represents a benchmark phase
     const phaseDirs = await extractPhaseDirs(playbookDir);
-
+    console.log(`Phase directories: ${phaseDirs}`);
     // Validate the execution order
     if(!isOrderIdentical(exeOrderArr, phaseDirs)) {
         core.setFailed('The execution order does not match the names of the phase directories');
