@@ -125,12 +125,12 @@ function prepareCommand(playbook, privateKey, inventory,
   let commandComponents = ["ansible-playbook", playbook]
 
   // set private key
-  handleOptionalFile(privateKey, ".ansible_private_key", "--private-key", commandComponents);
+  handleOptionalFile(privateKey, "ansible_private_key", "private-key", commandComponents);
 
   //commandComponents.push(`--private-key ${privateKey}`)
 
   // set inventory
-  handleOptionalFile(inventory, ".ansible_inventory", "-i", commandComponents);
+  handleOptionalFile(inventory, "ansible_inventory", "inventory", commandComponents);
   //commandComponents.push(`-i ${inventory}`)
 
   if (knownHosts) {
@@ -151,7 +151,7 @@ function prepareCommand(playbook, privateKey, inventory,
   //  adds the elements "sudo", "-E", "env", and PATH=${process.env.PATH}
   //  to the front of the array,
   //  which modifies the command to be run with sudo and preserve the current env vars.
-  if (sudo) {
+  if (sudo === 'true') {
     commandComponents.unshift("sudo", "-E", "env", `PATH=${process.env.PATH}`)
   }
 
