@@ -1,11 +1,6 @@
 - name: Test run action
   hosts: all
   tasks:
-    - name: Count the number of files and folders
-      command: find . -type f -name "*.yml" | wc -l
-      register: file_count
-
-    - name: Print the number of files and folders
-      debug:
-        msg: "The number of .yml files in the current folder is {{ file_count.stdout }}"
+    - name: List files
+      command: ls -lrt
 
