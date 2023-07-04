@@ -12,15 +12,30 @@ jobs:
     env:
       SSH_PUBLIC_KEY: |
         ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAAAgQC81OATMx00RzgqJY1LPvErUYDwYuTY1udV8XVs4J6qr+QQct52YfYxiQo6ZCmBQM12mnO1U7Jx52hmTiIE0OmDoUiHRmXJGpL+SlonQ2ACCcJ2cOsT5nGj6pPb+mu/AVCa2XprL9QhotAvMQEWyiwlwL9gTAHDJZvTu4SWV29hcw==
+        
+    
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+
+      - name: Create dir for ansible
+        run: sudo mkdir -p /etc/ansible/
+
+      - name: Create Ansible configuration
+        run: |
+          echo "[defaults]" | sudo tee /etc/ansible/ansible.cfg
+          echo "host_key_checking = False" | sudo tee -a /etc/ansible/ansible.cfg
+          echo "ansible_ssh_common_args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'" | sudo tee -a /etc/ansible/ansible.cfg
+          echo "inventory = ${{ github.workspace }}/ansibletest/hosts.cfg" | sudo tee -a /etc/ansible/ansible.cfg
+          echo "[privilege_escalation]" | sudo tee -a /etc/ansible/ansible.cfg
+          echo "become = True" | sudo tee -a /etc/ansible/ansible.cfg
+          echo "ANSIBLE_CONFIG=/etc/ansible/ansible.cfg" >> $GITHUB_ENV
+
       - name: test
         uses: ./
         with:
           ansible_directory: ./ansibletest
           playbook_directory: playbooks
-          inventory_file_path: hosts.cfg
           private_key: ${{secrets.PK}}
           execution_order: setup,run
