@@ -27,6 +27,7 @@ async function run() {
 
 
     if (path.resolve(ansible_dir) !== path.resolve(process.cwd())) {
+      console.log(`Changing directory to ${ansible_dir}`)
       process.chdir(ansible_dir);
       core.saveState("ansible_directory", ansible_dir);
     }
@@ -55,13 +56,17 @@ async function run() {
       let cmd = prepareCommand(currentPlaybook, privateKey, inventory,
           knownHosts, extraOptions, sudo);
 
+      console.log(`Running playbook ${currentPlaybook} with command: ${cmd}`);
+
       let currOutput = '';
       await exec.exec(cmd, null, {
         listeners: {
           stdout: function(data) {
+            console.log("Writing to stdout");
             currOutput += data.toString()
           },
           stderr: function(data) {
+            console.log("Writing to stderr");
             currOutput += data.toString()
           }
         }
@@ -78,10 +83,12 @@ async function run() {
 
 // String -> [String]
 function convertExeOrderStrToArray(executionOrder) {
+  console.log(`Converting the provided execution order: ${executionOrder}`)
   return executionOrder ? executionOrder.split(',').map(item => item.trim()) : [];
 }
 
 async function extractPhaseDirs(mainDirPath) {
+  console.log(`Extracting phase directories from ${process.cwd()} and ${mainDirPath}`)
     const directories = await fs.readdir(mainDirPath, { withFileTypes: true });
     // Dirent[] -> String[]
     return directories
@@ -95,6 +102,7 @@ async function extractPhaseDirs(mainDirPath) {
 // Then, check whether there is a match
 // between the names of the elements in the execution order array and the names of phases
 function isOrderIdentical(arr1, arr2) {
+  console.log(`Checking whether the execution order is identical to the phase directories`)
   if (arr1.length !== arr2.length) {
     return false;
   }
