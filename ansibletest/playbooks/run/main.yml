@@ -3,3 +3,8 @@
     - role: sleighzy.zookeeper
       zookeeper_servers:
         - localhost
+
+- hosts: kafka-nodes
+  roles:
+    - role: sleighzy.kafka
+
