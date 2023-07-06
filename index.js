@@ -3,7 +3,7 @@ const exec = require('@actions/exec');
 const fs = require('fs').promises;
 const path = require('path');
 const os = require('os');
-const yaml = require('yaml')
+const yaml = require('js-yaml')
 
 // The logic for running a single playbook is based on
 // the idea presented in dawidd6/action-ansible-playbook
@@ -87,7 +87,7 @@ async function run() {
 
 async function handleRequirements(requirements) {
   const requirementsContent = fs.readFile(requirements, 'utf8')
-  const requirementsObject = yaml.parse(requirementsContent)
+  const requirementsObject = yaml.load(requirementsContent)
 
   if (Array.isArray(requirementsObject)) {
     await exec.exec("ansible-galaxy", ["install", "-r", requirements])
