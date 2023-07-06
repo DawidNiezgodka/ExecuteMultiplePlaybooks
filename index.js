@@ -180,7 +180,7 @@ function prepareCommand(playbook, privateKey, inventory,
 function handleOptionalFile(inputFile, outputFileName, flagName, commandComponents) {
   if (inputFile) {
     const file = `.${outputFileName}`;
-    fs.writeFile(file, file + os.EOL, { mode: 0o700 });
+    fss.writeFileSync(file, file + os.EOL, { mode: 0o600 });
     core.saveState(outputFileName, file);
     commandComponents.push(`--${flagName}`);
     commandComponents.push(file);
