@@ -1,4 +1,3 @@
-...
 - role: sleighzy.zookeeper
   zookeeper_servers:
     - localhost
