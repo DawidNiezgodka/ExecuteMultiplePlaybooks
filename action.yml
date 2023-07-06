@@ -18,13 +18,11 @@ inputs:
     description: Order in which to execute the playbooks (comma-separated list of folder names).
     required: true
 
+## Optional
 
-
-  ## Optional
-
-#  requirements:
-#    description: JSON string mapping playbook names to galaxy requirement
-#    required: false
+  requirements:
+    description: JSON string mapping playbook names to galaxy requirement
+    required: false
 
   private_key:
     description: The private key for running Ansible commands.

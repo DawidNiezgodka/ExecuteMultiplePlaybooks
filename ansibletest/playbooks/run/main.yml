@@ -1,6 +1,4 @@
-- name: Test run action
-  hosts: all
-  tasks:
-    - name: List files
-      command: ls -lrt
-
+...
+- role: sleighzy.zookeeper
+  zookeeper_servers:
+    - localhost

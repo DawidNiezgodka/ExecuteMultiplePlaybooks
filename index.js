@@ -3,6 +3,7 @@ const exec = require('@actions/exec');
 const fs = require('fs').promises;
 const path = require('path');
 const os = require('os');
+const yaml = require('yaml')
 
 // The logic for running a single playbook is based on
 // the idea presented in dawidd6/action-ansible-playbook
@@ -18,7 +19,7 @@ async function run() {
     // TODO: handle requirements JSON
     // setup -> setup_requirements.yml
     // preload -> preload_requirements.yml etc
-    // const requirements = JSON.parse(core.getInput('requirements'));
+    const requirements = core.getInput('requirements');
     const privateKey = core.getInput('private_key');
     const inventory = core.getInput('inventory_file_path');
     const knownHosts = core.getInput('known_hosts');
@@ -31,6 +32,9 @@ async function run() {
       core.saveState("ansible_directory", ansible_dir);
     }
 
+    if (requirements) {
+      handleRequirements(requirements);
+    }
 
     // Split the execution order string into an array
     // Example: "a, b,   c" -> ["a", "b", "c"]
@@ -78,6 +82,20 @@ async function run() {
   }
   catch (error) {
     core.setFailed(error.message);
+  }
+}
+
+async function handleRequirements(requirements) {
+  const requirementsContent = fs.readFile(requirements, 'utf8')
+  const requirementsObject = yaml.parse(requirementsContent)
+
+  if (Array.isArray(requirementsObject)) {
+    await exec.exec("ansible-galaxy", ["install", "-r", requirements])
+  } else {
+    if (requirementsObject.roles)
+      await exec.exec("ansible-galaxy", ["role", "install", "-r", requirements])
+    if (requirementsObject.collections)
+      await exec.exec("ansible-galaxy", ["collection", "install", "-r", requirements])
   }
 }
 
