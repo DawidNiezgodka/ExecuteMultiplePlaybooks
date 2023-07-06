@@ -1,9 +1,10 @@
 const core = require('@actions/core');
 const exec = require('@actions/exec');
 const fs = require('fs').promises;
+const fss = require('fs');
 const path = require('path');
 const os = require('os');
-const yaml = require('js-yaml')
+const yaml = require('yaml')
 
 // The logic for running a single playbook is based on
 // the idea presented in dawidd6/action-ansible-playbook
@@ -33,7 +34,19 @@ async function run() {
     }
 
     if (requirements) {
-      await handleRequirements(requirements);
+      if (requirements) {
+        const requirementsContent = fss.readFileSync(requirements, 'utf8')
+        const requirementsObject = yaml.parse(requirementsContent)
+
+        if (Array.isArray(requirementsObject)) {
+          await exec.exec("ansible-galaxy", ["install", "-r", requirements])
+        } else {
+          if (requirementsObject.roles)
+            await exec.exec("ansible-galaxy", ["role", "install", "-r", requirements])
+          if (requirementsObject.collections)
+            await exec.exec("ansible-galaxy", ["collection", "install", "-r", requirements])
+        }
+      }
     }
 
     // Split the execution order string into an array
