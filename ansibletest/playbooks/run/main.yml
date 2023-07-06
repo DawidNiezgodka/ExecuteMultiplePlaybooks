@@ -1,3 +1,5 @@
-- role: sleighzy.zookeeper
-  zookeeper_servers:
-    - localhost
+- hosts: zookeeper-nodes
+  roles:
+    - role: sleighzy.zookeeper
+      zookeeper_servers:
+        - localhost
