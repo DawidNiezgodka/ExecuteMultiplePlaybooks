@@ -34,19 +34,7 @@ async function run() {
     }
 
     if (requirements) {
-      if (requirements) {
-        const requirementsContent = fss.readFileSync(requirements, 'utf8')
-        const requirementsObject = yaml.parse(requirementsContent)
-
-        if (Array.isArray(requirementsObject)) {
-          await exec.exec("ansible-galaxy", ["install", "-r", requirements])
-        } else {
-          if (requirementsObject.roles)
-            await exec.exec("ansible-galaxy", ["role", "install", "-r", requirements])
-          if (requirementsObject.collections)
-            await exec.exec("ansible-galaxy", ["collection", "install", "-r", requirements])
-        }
-      }
+      await handleRequirements(requirements);
     }
 
     // Split the execution order string into an array
@@ -99,18 +87,15 @@ async function run() {
 }
 
 async function handleRequirements(requirements) {
-  const requirementsContent = fs.readFile(requirements, 'utf8')
-  const requirementsObject = yaml.load(requirementsContent)
-  console.log("Loaded requirements: " + requirementsObject)
+  const requirementsContent = fss.readFileSync(requirements, 'utf8')
+  const requirementsObject = yaml.parse(requirementsContent)
+
   if (Array.isArray(requirementsObject)) {
-    console.log("Downloading requirements from ansible-galaxy");
     await exec.exec("ansible-galaxy", ["install", "-r", requirements])
   } else {
     if (requirementsObject.roles)
-      console.log("Downloading roles from ansible-galaxy")
       await exec.exec("ansible-galaxy", ["role", "install", "-r", requirements])
     if (requirementsObject.collections)
-      console.log("Downloading collections from ansible-galaxy")
       await exec.exec("ansible-galaxy", ["collection", "install", "-r", requirements])
   }
 }
