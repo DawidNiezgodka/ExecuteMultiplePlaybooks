@@ -1,4 +1,4 @@
 roles:
   # Install a role from Ansible Galaxy.
-  - name: sleighzy.zookeeper
-    version: 1.2.5
+  - name: "sleighzy.zookeeper"
+    version: "1.2.5"
