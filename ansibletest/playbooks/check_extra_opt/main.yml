@@ -25,5 +25,5 @@
       command: cat "{{ home_dir.rstrip('/') }}/{{ working_dir }}/{{ file_name }}"
       register: file_content
 
-    - debug: msg="{{ file_content.stdout }}"
+    - debug: msg="{{ file_content }}"
 
