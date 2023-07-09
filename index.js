@@ -201,6 +201,7 @@ function prepareCommand(playbook, privateKey, inventory, knownHosts, sudo,
 }
 
 function appendExtraOptions(commandComponents, extraOptionsArray) {
+  console.log("Appending extra options to the command with arr length: " + extraOptionsArray.length);
   if (extraOptionsArray.length > 0) {
     let extraOptions = extraOptionsArray.join(" ");
     commandComponents.push(extraOptions);

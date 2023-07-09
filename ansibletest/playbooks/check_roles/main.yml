@@ -7,7 +7,7 @@
   roles:
     - role: sleighzy.zookeeper
       zookeeper_servers:
-        - {{ zookeeper_servers}}
+        - {{ zookeeper_servers }}
 
 - hosts: kafka-nodes
   roles:

@@ -1,5 +1,5 @@
 - name: Playbook for checking extra option input
-  hosts: wg
+  hosts: all
   become: yes
 
   vars:
