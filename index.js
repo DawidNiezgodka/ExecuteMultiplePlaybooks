@@ -15,7 +15,7 @@ async function run() {
     const ansible_dir = core.getInput('ansible_directory', { required: true });
     const playbookDir = core.getInput('playbook_directory', { required: true });
     const executionOrder = core.getInput('execution_order', { required: true });
-
+    // Read optional inputs
     const requirements = core.getInput('requirements');
     const privateKey = core.getInput('private_key');
     const inventory = core.getInput('inventory_file_path');
@@ -23,67 +23,59 @@ async function run() {
     const sudo = core.getInput('sudo');
     const extraOptions = core.getInput('extra_options');
 
+    // Change the current working directory to the ansible directory
     if (path.resolve(ansible_dir) !== path.resolve(process.cwd())) {
       console.log(`Changing directory to ${ansible_dir}`)
       process.chdir(ansible_dir);
       core.saveState("ansible_directory", ansible_dir);
     }
 
+    // Install the requirements if the requirements file is provided
     if (requirements) {
       await handleRequirements(requirements);
     }
 
     // Split the execution order string into an array
+    // to facilitates the further processing of each playbook in a loop
     // Example: "a, b,   c" -> ["a", "b", "c"]
     const phaseOrder = convertExecutionOrderToPhaseArray(executionOrder);
-    console.log(`Execution order: ${phaseOrder}`)
 
     // Extract the subdirectories of the playbook directory
-    // Each subdirectory represents a benchmark phase
+    // Each subdirectory represents a (benchmark) phase
     const phaseDirs = await extractPhaseDirs(playbookDir);
-    console.log(`Phase directories: ${phaseDirs}`);
-    // Validate the execution order
-    if(!isOrderIdentical(phaseOrder, phaseDirs)) {
+    // Check whether the phases provided by the user match the phases represented
+    // by the subdirectories of the playbook directory.
+    // For example, if the user provides "a, b, c" as the execution order,
+    // then the playbook directory must contain subdirectories named "a", "b", and "c"
+    if(!validatePlaybookPhases(phaseOrder, phaseDirs)) {
         core.setFailed('The execution order does not match the names of the phase directories');
         return;
     }
 
-    // Create a mapping between a phase name
-    // and array of extra options for this particular phase
+    // Process the multiline input parameter that contains additional options
+    // for each phase's playbook.
+    // The result of the processing is a data structure that maps each phase name
+    // to a list of additional options.
+    // Example: "setup" -> ["-private-key abc.key"]
     const phaseNameToExtraOptions = parseExtraOptions(extraOptions);
 
-    const results = {};
-    for (const phase of phaseOrder) {
-
-      const currentPlaybook = path.join(playbookDir, phase, 'main.yml');
-      let cmd = prepareCommand(currentPlaybook, privateKey, inventory,
-          knownHosts, sudo, phaseNameToExtraOptions, phase);
-
-      console.log(`Running playbook ${currentPlaybook} with command: ${cmd}`);
-
-      let currOutput = '';
-      await exec.exec(cmd, null, {
-        listeners: {
-          stdout: function(data) {
-            console.log("Writing to stdout");
-            currOutput += data.toString()
-          },
-          stderr: function(data) {
-            console.log("Writing to stderr");
-            currOutput += data.toString()
-          }
-        }
-      })
-      results[phase] = currOutput;
-
-    }
+    // The main logic of the action - executing multiple playbooks according to the provided execution order
+    // and with the provided options
+    const results = await executeMultiplePlaybooks(phaseOrder, playbookDir, privateKey,
+        inventory, knownHosts, sudo, phaseNameToExtraOptions);
     core.setOutput('results', JSON.stringify(results));
+
   }
   catch (error) {
     core.setFailed(error.message);
   }
 }
 
+/**
+ * Processes the file with requirement. Logic taken from dawidd6/action-ansible-playbook
+ * @param requirements the file with requirements
+ * @returns {Promise<void>} a promise
+ */
 async function handleRequirements(requirements) {
   const requirementsContent = fss.readFileSync(requirements, 'utf8')
   const requirementsObject = yaml.parse(requirementsContent)
@@ -98,12 +90,22 @@ async function handleRequirements(requirements) {
   }
 }
 
-// String -> [String]
+/**
+ * Converts a string that represents an execution order to an array of strings,
+ * where each string represents a phase name.
+ * @param executionOrder a string that represents an execution order (action's input)
+ * @returns {*|*[]} an array of strings, where each string represents a phase name
+ * or an empty array if the provided execution order is empty
+ */
 function convertExecutionOrderToPhaseArray(executionOrder) {
-  console.log(`Converting the provided execution order: ${executionOrder}`)
   return executionOrder ? executionOrder.split(',').map(item => item.trim()) : [];
 }
 
+/**
+ *
+ * @param mainDirPath
+ * @returns {Promise<string[]>}
+ */
 async function extractPhaseDirs(mainDirPath) {
   console.log(`Extracting phase directories from ${process.cwd()} and ${mainDirPath}`)
     const directories = await fs.readdir(mainDirPath, { withFileTypes: true });
@@ -113,28 +115,61 @@ async function extractPhaseDirs(mainDirPath) {
         .map(dirent => dirent.name);
 }
 
-// [String] -> [String] -> Boolean
-// First, check if the number of elements in the execution order array
-// matches the number of phase directories.
-// Then, check whether there is a match
-// between the names of the elements in the execution order array and the names of phases
-function isOrderIdentical(arr1, arr2) {
-  console.log(`Checking whether the execution order is identical to the phase directories`)
-  if (arr1.length !== arr2.length) {
+
+/**
+ * First, checks if the number of elements in the execution order array
+ * matches the number of phase directories.
+ * Then, checks whether there is a match
+ * between the names of the elements in the execution order array and the names of phases
+ * @param providedPhaseOrder execution order array, which is a result of the convertExecutionOrderToPhaseArray function
+ * @param phaseSubDirs extracted phase directories, i.e.: subdirectories of the playbook directory
+ * @returns {boolean}
+ */
+function validatePlaybookPhases(providedPhaseOrder, phaseSubDirs) {
+  if (providedPhaseOrder.length !== phaseSubDirs.length) {
     return false;
   }
-  let sortedArr1 = [...arr1].sort();
-  let sortedArr2 = [...arr2].sort();
+  let sortedInputPhases = [...providedPhaseOrder].sort();
+  let sortedPhaseSubDirs = [...phaseSubDirs].sort();
 
-  for (let i = 0; i < sortedArr1.length; i++) {
-    if (sortedArr1[i] !== sortedArr2[i]) {
+  for (let i = 0; i < sortedInputPhases.length; i++) {
+    if (sortedInputPhases[i] !== sortedPhaseSubDirs[i]) {
       return false;
     }
   }
   return true;
 }
 
+async function executeMultiplePlaybooks(phaseOrder, playbookDir,
+                                        privateKey, inventory, knownHosts, sudo,
+                                        phaseNameToExtraOptions) {
+  const results = {};
+  for (const phase of phaseOrder) {
 
+    const currentPlaybook = path.join(playbookDir, phase, 'main.yml');
+    let cmd = prepareCommand(currentPlaybook, privateKey, inventory,
+        knownHosts, sudo, phaseNameToExtraOptions, phase);
+
+    console.log(`Running playbook ${currentPlaybook} with command: ${cmd}`);
+
+    let currOutput = '';
+    await exec.exec(cmd, null, {
+      listeners: {
+        stdout: function (data) {
+          console.log("Writing to stdout");
+          currOutput += data.toString()
+        },
+        stderr: function (data) {
+          console.log("Writing to stderr");
+          currOutput += data.toString()
+        }
+      }
+    })
+    results[phase] = currOutput;
+
+  }
+  return results;
+}
 
 function parseExtraOptions(extraOptions) {
   const groupPattern = /<<(.+)>>\n([^<]+)/g;
@@ -225,7 +260,7 @@ run();
 module.exports = {
     convertExeOrderStrToArray: convertExecutionOrderToPhaseArray,
     extractPhaseDirs,
-    isOrderIdentical,
+    isOrderIdentical: validatePlaybookPhases,
     prepareCommand,
     run
 };
