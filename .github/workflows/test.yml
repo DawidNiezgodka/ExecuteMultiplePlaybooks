@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - ans-role-and-readme
 
 
 jobs:
@@ -39,3 +40,4 @@ jobs:
           playbook_directory: playbooks
           private_key: ${{secrets.PK}}
           execution_order: setup,run
+          requirements: requirements.yml

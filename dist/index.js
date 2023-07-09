@@ -2,18 +2,14 @@ require('./sourcemap-register.js');/******/ (() => { // webpackBootstrap
 /******/ 	var __webpack_modules__ = ({
 
 /***/ 932:
-/***/ ((module, __webpack_exports__, __nccwpck_require__) => {
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
-"use strict";
-__nccwpck_require__.r(__webpack_exports__);
-/* harmony import */ var fs__WEBPACK_IMPORTED_MODULE_0__ = __nccwpck_require__(147);
-/* harmony import */ var fs__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__nccwpck_require__.n(fs__WEBPACK_IMPORTED_MODULE_0__);
-/* module decorator */ module = __nccwpck_require__.hmd(module);
 const core = __nccwpck_require__(186);
 const exec = __nccwpck_require__(514);
-
-const fsp = fs__WEBPACK_IMPORTED_MODULE_0__.promises.promises;
+const fs = (__nccwpck_require__(147).promises);
 const path = __nccwpck_require__(17);
+const os = __nccwpck_require__(37);
+const yaml = __nccwpck_require__(285)
 
 // The logic for running a single playbook is based on
 // the idea presented in dawidd6/action-ansible-playbook
@@ -21,35 +17,40 @@ const path = __nccwpck_require__(17);
 async function run() {
   try {
     // Read required inputs
-    const playbookDir = core.getInput('playbook_directory', { required: true });
-    const privateKey = core.getInput('private_key', { required: true });
-    const executionOrder = core.getInput('execution_order', { required: true })
-    const inventory = core.getInput('inventory', { required: true });
     const ansible_dir = core.getInput('ansible_directory', { required: true });
+    const playbookDir = core.getInput('playbook_directory', { required: true });
+    const executionOrder = core.getInput('execution_order', { required: true });
+
 
     // TODO: handle requirements JSON
     // setup -> setup_requirements.yml
     // preload -> preload_requirements.yml etc
-    // const requirements = JSON.parse(core.getInput('requirements'));
+    const requirements = core.getInput('requirements');
+    const privateKey = core.getInput('private_key');
+    const inventory = core.getInput('inventory_file_path');
     const knownHosts = core.getInput('known_hosts');
     const extraOptions = core.getInput('extra_options');
     const sudo = core.getInput('sudo');
 
-
     if (path.resolve(ansible_dir) !== path.resolve(process.cwd())) {
+      console.log(`Changing directory to ${ansible_dir}`)
       process.chdir(ansible_dir);
-      core.saveState("directory", ansible_dir);
+      core.saveState("ansible_directory", ansible_dir);
     }
 
+    if (requirements) {
+      handleRequirements(requirements);
+    }
 
     // Split the execution order string into an array
     // Example: "a, b,   c" -> ["a", "b", "c"]
     const exeOrderArr = convertExeOrderStrToArray(executionOrder);
+    console.log(`Execution order: ${exeOrderArr}`)
 
     // Extract the subdirectories of the playbook directory
     // Each subdirectory represents a benchmark phase
     const phaseDirs = await extractPhaseDirs(playbookDir);
-
+    console.log(`Phase directories: ${phaseDirs}`);
     // Validate the execution order
     if(!isOrderIdentical(exeOrderArr, phaseDirs)) {
         core.setFailed('The execution order does not match the names of the phase directories');
@@ -57,7 +58,7 @@ async function run() {
     }
 
     const results = {};
-    for (const playbook of executionOrder) {
+    for (const playbook of exeOrderArr) {
       // Assumption: Each subdirectory contains a main.yml playbook which is the entrypoint
       // to the given phase's logic
       const currentPlaybook = path.join(playbookDir, playbook, 'main.yml');
@@ -65,13 +66,17 @@ async function run() {
       let cmd = prepareCommand(currentPlaybook, privateKey, inventory,
           knownHosts, extraOptions, sudo);
 
+      console.log(`Running playbook ${currentPlaybook} with command: ${cmd}`);
+
       let currOutput = '';
       await exec.exec(cmd, null, {
         listeners: {
           stdout: function(data) {
+            console.log("Writing to stdout");
             currOutput += data.toString()
           },
           stderr: function(data) {
+            console.log("Writing to stderr");
             currOutput += data.toString()
           }
         }
@@ -86,13 +91,29 @@ async function run() {
   }
 }
 
+async function handleRequirements(requirements) {
+  const requirementsContent = fs.readFile(requirements, 'utf8')
+  const requirementsObject = yaml.parse(requirementsContent)
+
+  if (Array.isArray(requirementsObject)) {
+    await exec.exec("ansible-galaxy", ["install", "-r", requirements])
+  } else {
+    if (requirementsObject.roles)
+      await exec.exec("ansible-galaxy", ["role", "install", "-r", requirements])
+    if (requirementsObject.collections)
+      await exec.exec("ansible-galaxy", ["collection", "install", "-r", requirements])
+  }
+}
+
 // String -> [String]
 function convertExeOrderStrToArray(executionOrder) {
+  console.log(`Converting the provided execution order: ${executionOrder}`)
   return executionOrder ? executionOrder.split(',').map(item => item.trim()) : [];
 }
 
 async function extractPhaseDirs(mainDirPath) {
-    const directories = await fs__WEBPACK_IMPORTED_MODULE_0__.promises.readdir(mainDirPath, { withFileTypes: true });
+  console.log(`Extracting phase directories from ${process.cwd()} and ${mainDirPath}`)
+    const directories = await fs.readdir(mainDirPath, { withFileTypes: true });
     // Dirent[] -> String[]
     return directories
         .filter(dirent => dirent.isDirectory())
@@ -105,12 +126,15 @@ async function extractPhaseDirs(mainDirPath) {
 // Then, check whether there is a match
 // between the names of the elements in the execution order array and the names of phases
 function isOrderIdentical(arr1, arr2) {
+  console.log(`Checking whether the execution order is identical to the phase directories`)
   if (arr1.length !== arr2.length) {
     return false;
   }
+  let sortedArr1 = [...arr1].sort();
+  let sortedArr2 = [...arr2].sort();
 
-  for (let i = 0; i < arr1.length; i++) {
-    if (arr1[i] !== arr2[i]) {
+  for (let i = 0; i < sortedArr1.length; i++) {
+    if (sortedArr1[i] !== sortedArr2[i]) {
       return false;
     }
   }
@@ -124,17 +148,17 @@ function prepareCommand(playbook, privateKey, inventory,
   let commandComponents = ["ansible-playbook", playbook]
 
   // set private key
-  commandComponents.push(`--private-key ${privateKey}`)
+  handleOptionalFile(privateKey, "ansible_private_key", "private-key", commandComponents);
+
+  //commandComponents.push(`--private-key ${privateKey}`)
 
   // set inventory
-  commandComponents.push(`-i ${inventory}`)
-
-
-
+  handleOptionalFile(inventory, "ansible_inventory", "inventory", commandComponents);
+  //commandComponents.push(`-i ${inventory}`)
 
   if (knownHosts) {
     const knownHostsFile = ".ansible_known_hosts"
-    fs__WEBPACK_IMPORTED_MODULE_0__.promises.writeFile(knownHostsFile, knownHosts, { mode: 0o600})
+    fs.writeFile(knownHostsFile, knownHosts, { mode: 0o600})
     core.saveState("knownHostsFile", knownHostsFile)
     commandComponents.push(`--ssh-common-args="-o UserKnownHostsFile=${knownHostsFile}"`)
     process.env.ANSIBLE_HOST_KEY_CHECKING = "True"
@@ -150,11 +174,22 @@ function prepareCommand(playbook, privateKey, inventory,
   //  adds the elements "sudo", "-E", "env", and PATH=${process.env.PATH}
   //  to the front of the array,
   //  which modifies the command to be run with sudo and preserve the current env vars.
-  if (sudo) {
+  if (sudo === 'true') {
     commandComponents.unshift("sudo", "-E", "env", `PATH=${process.env.PATH}`)
   }
 
   return commandComponents.join(" ")
+}
+
+
+function handleOptionalFile(inputFile, outputFileName, flagName, commandComponents) {
+  if (inputFile) {
+    const file = `.${outputFileName}`;
+    fs.writeFile(file, file + os.EOL, { mode: 0o700 });
+    core.saveState(outputFileName, file);
+    commandComponents.push(`--${flagName}`);
+    commandComponents.push(file);
+  }
 }
 
 run();
@@ -4088,6 +4123,14 @@ exports["default"] = _default;
 
 /***/ }),
 
+/***/ 285:
+/***/ ((module) => {
+
+module.exports = eval("require")("yaml");
+
+
+/***/ }),
+
 /***/ 491:
 /***/ ((module) => {
 
@@ -4214,8 +4257,8 @@ module.exports = require("util");
 /******/ 		}
 /******/ 		// Create a new module (and put it into the cache)
 /******/ 		var module = __webpack_module_cache__[moduleId] = {
-/******/ 			id: moduleId,
-/******/ 			loaded: false,
+/******/ 			// no module.id needed
+/******/ 			// no module.loaded needed
 /******/ 			exports: {}
 /******/ 		};
 /******/ 	
@@ -4228,69 +4271,11 @@ module.exports = require("util");
 /******/ 			if(threw) delete __webpack_module_cache__[moduleId];
 /******/ 		}
 /******/ 	
-/******/ 		// Flag the module as loaded
-/******/ 		module.loaded = true;
-/******/ 	
 /******/ 		// Return the exports of the module
 /******/ 		return module.exports;
 /******/ 	}
 /******/ 	
 /************************************************************************/
-/******/ 	/* webpack/runtime/compat get default export */
-/******/ 	(() => {
-/******/ 		// getDefaultExport function for compatibility with non-harmony modules
-/******/ 		__nccwpck_require__.n = (module) => {
-/******/ 			var getter = module && module.__esModule ?
-/******/ 				() => (module['default']) :
-/******/ 				() => (module);
-/******/ 			__nccwpck_require__.d(getter, { a: getter });
-/******/ 			return getter;
-/******/ 		};
-/******/ 	})();
-/******/ 	
-/******/ 	/* webpack/runtime/define property getters */
-/******/ 	(() => {
-/******/ 		// define getter functions for harmony exports
-/******/ 		__nccwpck_require__.d = (exports, definition) => {
-/******/ 			for(var key in definition) {
-/******/ 				if(__nccwpck_require__.o(definition, key) && !__nccwpck_require__.o(exports, key)) {
-/******/ 					Object.defineProperty(exports, key, { enumerable: true, get: definition[key] });
-/******/ 				}
-/******/ 			}
-/******/ 		};
-/******/ 	})();
-/******/ 	
-/******/ 	/* webpack/runtime/harmony module decorator */
-/******/ 	(() => {
-/******/ 		__nccwpck_require__.hmd = (module) => {
-/******/ 			module = Object.create(module);
-/******/ 			if (!module.children) module.children = [];
-/******/ 			Object.defineProperty(module, 'exports', {
-/******/ 				enumerable: true,
-/******/ 				set: () => {
-/******/ 					throw new Error('ES Modules may not assign module.exports or exports.*, Use ESM export syntax, instead: ' + module.id);
-/******/ 				}
-/******/ 			});
-/******/ 			return module;
-/******/ 		};
-/******/ 	})();
-/******/ 	
-/******/ 	/* webpack/runtime/hasOwnProperty shorthand */
-/******/ 	(() => {
-/******/ 		__nccwpck_require__.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop))
-/******/ 	})();
-/******/ 	
-/******/ 	/* webpack/runtime/make namespace object */
-/******/ 	(() => {
-/******/ 		// define __esModule on exports
-/******/ 		__nccwpck_require__.r = (exports) => {
-/******/ 			if(typeof Symbol !== 'undefined' && Symbol.toStringTag) {
-/******/ 				Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
-/******/ 			}
-/******/ 			Object.defineProperty(exports, '__esModule', { value: true });
-/******/ 		};
-/******/ 	})();
-/******/ 	
 /******/ 	/* webpack/runtime/compat */
 /******/ 	
 /******/ 	if (typeof __nccwpck_require__ !== 'undefined') __nccwpck_require__.ab = __dirname + "/";

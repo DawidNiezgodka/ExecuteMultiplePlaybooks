@@ -1,6 +1,11 @@
-- name: Test run action
-  hosts: all
-  tasks:
-    - name: List files
-      command: ls -lrt
+- hosts: zookeeper-nodes
+  roles:
+    - role: sleighzy.zookeeper
+      zookeeper_servers:
+        - localhost
+
+- hosts: kafka-nodes
+  roles:
+    - role: sleighzy.kafka
+      kafka_download_base_url: https://archive.apache.org/dist/kafka
 

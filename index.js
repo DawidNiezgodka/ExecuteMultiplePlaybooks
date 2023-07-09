@@ -1,8 +1,10 @@
 const core = require('@actions/core');
 const exec = require('@actions/exec');
 const fs = require('fs').promises;
+const fss = require('fs');
 const path = require('path');
 const os = require('os');
+const yaml = require('yaml')
 
 // The logic for running a single playbook is based on
 // the idea presented in dawidd6/action-ansible-playbook
@@ -15,10 +17,7 @@ async function run() {
     const executionOrder = core.getInput('execution_order', { required: true });
 
 
-    // TODO: handle requirements JSON
-    // setup -> setup_requirements.yml
-    // preload -> preload_requirements.yml etc
-    // const requirements = JSON.parse(core.getInput('requirements'));
+    const requirements = core.getInput('requirements');
     const privateKey = core.getInput('private_key');
     const inventory = core.getInput('inventory_file_path');
     const knownHosts = core.getInput('known_hosts');
@@ -31,6 +30,9 @@ async function run() {
       core.saveState("ansible_directory", ansible_dir);
     }
 
+    if (requirements) {
+      await handleRequirements(requirements);
+    }
 
     // Split the execution order string into an array
     // Example: "a, b,   c" -> ["a", "b", "c"]
@@ -51,6 +53,8 @@ async function run() {
     for (const playbook of exeOrderArr) {
       // Assumption: Each subdirectory contains a main.yml playbook which is the entrypoint
       // to the given phase's logic
+
+      // TODO: check if the folder contains the file; if not, skip it
       const currentPlaybook = path.join(playbookDir, playbook, 'main.yml');
       // ./playbook_dir/phase_dir/main.yml
       let cmd = prepareCommand(currentPlaybook, privateKey, inventory,
@@ -78,6 +82,20 @@ async function run() {
   }
   catch (error) {
     core.setFailed(error.message);
+  }
+}
+
+async function handleRequirements(requirements) {
+  const requirementsContent = fss.readFileSync(requirements, 'utf8')
+  const requirementsObject = yaml.parse(requirementsContent)
+
+  if (Array.isArray(requirementsObject)) {
+    await exec.exec("ansible-galaxy", ["install", "-r", requirements])
+  } else {
+    if (requirementsObject.roles)
+      await exec.exec("ansible-galaxy", ["role", "install", "-r", requirements])
+    if (requirementsObject.collections)
+      await exec.exec("ansible-galaxy", ["collection", "install", "-r", requirements])
   }
 }
 
@@ -161,7 +179,7 @@ function prepareCommand(playbook, privateKey, inventory,
 function handleOptionalFile(inputFile, outputFileName, flagName, commandComponents) {
   if (inputFile) {
     const file = `.${outputFileName}`;
-    fs.writeFile(file, file + os.EOL, { mode: 0o700 });
+    fss.writeFileSync(file, file + os.EOL, { mode: 0o600 });
     core.saveState(outputFileName, file);
     commandComponents.push(`--${flagName}`);
     commandComponents.push(file);
