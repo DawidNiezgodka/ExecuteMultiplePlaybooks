@@ -39,7 +39,7 @@ jobs:
           ansible_directory: ./ansibletest
           playbook_directory: playbooks
           private_key: ${{secrets.PK}}
-          execution_order: setup,check_roles,check_extra_opt
+          execution_order: setup,check_extra_opt, check_roles
           requirements: requirements.yml
           extra_options: |
               <<all>>
