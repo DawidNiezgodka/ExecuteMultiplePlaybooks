@@ -40,8 +40,19 @@ inputs:
 
   extra_options:
     description: |
-      Extra options that are passed to playbook command,
-      for example --extra-vars or --inventory
+      A multi-line string of extra options to pass to ansible-playbooks.
+      Please provide the options in the following way:
+      1. each group of options should be separated by double angle brackets (<< >>)
+      2. each option in a group should be separated by a new line
+      3. extra variables that should be applied to all playbooks should be in the 
+       group name <<all>>
+      Example:
+        <<all>>
+        --private-key /home/runner/.ssh/key
+        <<group1>>
+        --extra-vars "secret=${{ secrets.S1 }}"
+        <<group2>>
+        -i /home/runner/inventory
     required: false
 
   sudo:

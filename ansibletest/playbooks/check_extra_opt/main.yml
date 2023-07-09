@@ -1,0 +1,29 @@
+- name: Playbook for checking extra option input
+  hosts: wg
+  become: yes
+
+  vars:
+    home_dir: /home/runner
+    working_dir: bench
+    file_name: ""
+    file_content: ""
+
+  tasks:
+
+    - name: create working dir
+      file:
+        path: "{{ home_dir.rstrip('/') }}/{{ working_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: create file with variable content
+      copy:
+        content: "{{ file_content }}"
+        dest: "{{ home_dir.rstrip('/') }}/{{ working_dir }}/{{ file_name }}"
+
+    - name: print the content of the created file
+      command: cat "{{ home_dir.rstrip('/') }}/{{ working_dir }}/{{ file_name }}"
+      register: file_content
+
+    - debug: msg="{{ file_content.stdout }}"
+

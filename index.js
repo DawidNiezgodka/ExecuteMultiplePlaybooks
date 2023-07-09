@@ -21,8 +21,8 @@ async function run() {
     const privateKey = core.getInput('private_key');
     const inventory = core.getInput('inventory_file_path');
     const knownHosts = core.getInput('known_hosts');
-    const extraOptions = core.getInput('extra_options');
     const sudo = core.getInput('sudo');
+    const extraOptions = core.getInput('extra_options');
 
     if (path.resolve(ansible_dir) !== path.resolve(process.cwd())) {
       console.log(`Changing directory to ${ansible_dir}`)
@@ -36,29 +36,38 @@ async function run() {
 
     // Split the execution order string into an array
     // Example: "a, b,   c" -> ["a", "b", "c"]
-    const exeOrderArr = convertExeOrderStrToArray(executionOrder);
-    console.log(`Execution order: ${exeOrderArr}`)
+    const phaseOrder = convertExecutionOrderToPhaseArray(executionOrder);
+    console.log(`Execution order: ${phaseOrder}`)
 
     // Extract the subdirectories of the playbook directory
     // Each subdirectory represents a benchmark phase
     const phaseDirs = await extractPhaseDirs(playbookDir);
     console.log(`Phase directories: ${phaseDirs}`);
     // Validate the execution order
-    if(!isOrderIdentical(exeOrderArr, phaseDirs)) {
+    if(!isOrderIdentical(phaseOrder, phaseDirs)) {
         core.setFailed('The execution order does not match the names of the phase directories');
         return;
     }
 
+    // Create a mapping between a phase name
+    // and array of extra options for this particular phase
+    // todo: if extra options exist
+    const phaseNameToExtraOptions = parseExtraOptions(extraOptions);
+
+    const extraOptionsForAllPhases = phaseNameToExtraOptions['all'] || [];
+    // Assumption: Each subdirectory contains a main.yml playbook which is the entrypoint
+    // to the given phase's logic
     const results = {};
-    for (const playbook of exeOrderArr) {
-      // Assumption: Each subdirectory contains a main.yml playbook which is the entrypoint
-      // to the given phase's logic
+    for (const phase of phaseOrder) {
 
       // TODO: check if the folder contains the file; if not, skip it
-      const currentPlaybook = path.join(playbookDir, playbook, 'main.yml');
-      // ./playbook_dir/phase_dir/main.yml
-      let cmd = prepareCommand(currentPlaybook, privateKey, inventory,
-          knownHosts, extraOptions, sudo);
+      // Example: ./playbook_dir/phase_dir/main.yml
+      const currentPlaybook = path.join(playbookDir, phase, 'main.yml');
+
+      // Check if phaseNameToExtraOptions contains extra options for the current phase
+      const extraOptionsForGivenPhase = phaseNameToExtraOptions[phase] || [];
+      let cmd = prepareCommand(currentPlaybook, privateKey, inventory, knownHosts, sudo,
+          extraOptionsForAllPhases, extraOptionsForGivenPhase);
 
       console.log(`Running playbook ${currentPlaybook} with command: ${cmd}`);
 
@@ -75,7 +84,7 @@ async function run() {
           }
         }
       })
-      results[playbook] = currOutput;
+      results[phase] = currOutput;
 
     }
     core.setOutput('results', JSON.stringify(results));
@@ -100,7 +109,7 @@ async function handleRequirements(requirements) {
 }
 
 // String -> [String]
-function convertExeOrderStrToArray(executionOrder) {
+function convertExecutionOrderToPhaseArray(executionOrder) {
   console.log(`Converting the provided execution order: ${executionOrder}`)
   return executionOrder ? executionOrder.split(',').map(item => item.trim()) : [];
 }
@@ -136,8 +145,26 @@ function isOrderIdentical(arr1, arr2) {
 }
 
 
-function prepareCommand(playbook, privateKey, inventory,
-                        knownHosts, extraOptions, sudo) {
+
+function parseExtraOptions(extraOptions) {
+  const groupPattern = /<<(.+)>>\n([^<]+)/g;
+  let groupNameToCommands = new Map();
+  let match;
+
+  while ((match = groupPattern.exec(extraOptions)) !== null) {
+    let groupName = match[1];
+    let commands = match[2].trim().split('\n');
+    groupNameToCommands.set(groupName, commands);
+  }
+
+  return groupNameToCommands;
+}
+
+
+//       let cmd = prepareCommand(currentPlaybook, privateKey, inventory, knownHosts, sudo,
+//           extraOptionsForAllPhases, extraOptionsForGivenPhase);
+function prepareCommand(playbook, privateKey, inventory, knownHosts, sudo,
+                        extraOptionsForAllPhases, extraOptionsForGivenPhase) {
 
   let commandComponents = ["ansible-playbook", playbook]
 
@@ -160,10 +187,8 @@ function prepareCommand(playbook, privateKey, inventory,
     process.env.ANSIBLE_HOST_KEY_CHECKING = "False"
   }
 
-  // replaces all newline characters with a single space (\g replaces all occurrences)
-  if (extraOptions) {
-    commandComponents.push(extraOptions.replace(/\n/g, " "))
-  }
+  appendExtraOptions(commandComponents, extraOptionsForAllPhases);
+  appendExtraOptions(commandComponents, extraOptionsForGivenPhase);
 
   //  adds the elements "sudo", "-E", "env", and PATH=${process.env.PATH}
   //  to the front of the array,
@@ -173,6 +198,13 @@ function prepareCommand(playbook, privateKey, inventory,
   }
 
   return commandComponents.join(" ")
+}
+
+function appendExtraOptions(commandComponents, extraOptionsArray) {
+  if (extraOptionsArray.length > 0) {
+    let extraOptions = extraOptionsArray.join(" ");
+    commandComponents.push(extraOptions);
+  }
 }
 
 
@@ -189,7 +221,7 @@ function handleOptionalFile(inputFile, outputFileName, flagName, commandComponen
 run();
 
 module.exports = {
-    convertExeOrderStrToArray,
+    convertExeOrderStrToArray: convertExecutionOrderToPhaseArray,
     extractPhaseDirs,
     isOrderIdentical,
     prepareCommand,

@@ -1,8 +1,13 @@
-- hosts: zookeeper-nodes
+- name: Check if zoo and kafka roles work properly
+  hosts: zookeeper-nodes
+
+  vars:
+    zookeeper_servers: xyz
+
   roles:
     - role: sleighzy.zookeeper
       zookeeper_servers:
-        - localhost
+        - {{ zookeeper_servers}}
 
 - hosts: kafka-nodes
   roles:
