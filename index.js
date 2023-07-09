@@ -16,7 +16,6 @@ async function run() {
     const playbookDir = core.getInput('playbook_directory', { required: true });
     const executionOrder = core.getInput('execution_order', { required: true });
 
-
     const requirements = core.getInput('requirements');
     const privateKey = core.getInput('private_key');
     const inventory = core.getInput('inventory_file_path');
@@ -51,33 +50,14 @@ async function run() {
 
     // Create a mapping between a phase name
     // and array of extra options for this particular phase
-    // todo: if extra options exist
-    console.log(`Extra options input: ${extraOptions}`);
     const phaseNameToExtraOptions = parseExtraOptions(extraOptions);
-    phaseNameToExtraOptions.forEach((value, key) => {
-      console.log(`Key: ${key} ==> ${value}`);
-    });
 
-    const extraOptionsForAllPhases = phaseNameToExtraOptions['all'] || [];
-    extraOptionsForAllPhases.forEach((value) => {
-        console.log(`Extra options for all phases: ${value}`);
-    });
-    // Assumption: Each subdirectory contains a main.yml playbook which is the entrypoint
-    // to the given phase's logic
     const results = {};
     for (const phase of phaseOrder) {
 
-      // TODO: check if the folder contains the file; if not, skip it
-      // Example: ./playbook_dir/phase_dir/main.yml
       const currentPlaybook = path.join(playbookDir, phase, 'main.yml');
-
-      // Check if phaseNameToExtraOptions contains extra options for the current phase
-      const extraOptionsForGivenPhase = phaseNameToExtraOptions[phase] || [];
-      extraOptionsForAllPhases.forEach((value) => {
-        console.log(`Extra options for all phases: ${value}`);
-      });
-      let cmd = prepareCommand(currentPlaybook, privateKey, inventory, knownHosts, sudo,
-          extraOptionsForAllPhases, extraOptionsForGivenPhase);
+      let cmd = prepareCommand(currentPlaybook, privateKey, inventory,
+          knownHosts, sudo, phaseNameToExtraOptions, phase);
 
       console.log(`Running playbook ${currentPlaybook} with command: ${cmd}`);
 
@@ -174,14 +154,12 @@ function parseExtraOptions(extraOptions) {
 //       let cmd = prepareCommand(currentPlaybook, privateKey, inventory, knownHosts, sudo,
 //           extraOptionsForAllPhases, extraOptionsForGivenPhase);
 function prepareCommand(playbook, privateKey, inventory, knownHosts, sudo,
-                        extraOptionsForAllPhases, extraOptionsForGivenPhase) {
+                        phaseNameToExtraOptions, phase) {
 
   let commandComponents = ["ansible-playbook", playbook]
 
   // set private key
   handleOptionalFile(privateKey, "ansible_private_key", "private-key", commandComponents);
-
-  //commandComponents.push(`--private-key ${privateKey}`)
 
   // set inventory
   handleOptionalFile(inventory, "ansible_inventory", "inventory", commandComponents);
@@ -197,8 +175,9 @@ function prepareCommand(playbook, privateKey, inventory, knownHosts, sudo,
     process.env.ANSIBLE_HOST_KEY_CHECKING = "False"
   }
 
-  appendExtraOptions(commandComponents, extraOptionsForAllPhases);
-  appendExtraOptions(commandComponents, extraOptionsForGivenPhase);
+  appendExtraOptionsForGivenPhase(commandComponents, phaseNameToExtraOptions, phase);
+  appendExtraOptionForWhichApplyToAllPhases(commandComponents, phaseNameToExtraOptions);
+
 
   //  adds the elements "sudo", "-E", "env", and PATH=${process.env.PATH}
   //  to the front of the array,
@@ -210,11 +189,23 @@ function prepareCommand(playbook, privateKey, inventory, knownHosts, sudo,
   return commandComponents.join(" ")
 }
 
-function appendExtraOptions(commandComponents, extraOptionsArray) {
-  console.log("Appending extra options to the command with arr length: " + extraOptionsArray.length);
-  if (extraOptionsArray.length > 0) {
-    let extraOptions = extraOptionsArray.join(" ");
-    commandComponents.push(extraOptions);
+function appendExtraOptionsForGivenPhase(commandComponents, phaseNameToExtraOptions, phase) {
+  if (phaseNameToExtraOptions.has(phase)) {
+
+    let commands = phaseNameToExtraOptions.get(phase);
+    console.log(`Appending ${commands.length} extra options for phase ${phase}`)
+    if (commands.length > 0) {
+        commandComponents.push(...commands);
+    }
+  }
+}
+
+function appendExtraOptionForWhichApplyToAllPhases(commandComponents, phaseNameToExtraOptions) {
+  if (phaseNameToExtraOptions.has('all')) {
+    let commands = phaseNameToExtraOptions.get('all');
+    if (commands.length > 0) {
+      commandComponents.push(...commands);
+    }
   }
 }
 
