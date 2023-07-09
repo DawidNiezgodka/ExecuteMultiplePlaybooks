@@ -48,5 +48,5 @@ jobs:
               --extra-vars file_content=info_from_check_extra_opt
               <<setup>>
               <<check_roles>>
-              --extra-vars zookeeper_servers=localhost
+              --extra-vars zks=localhost
             

@@ -2,12 +2,12 @@
   hosts: zookeeper-nodes
 
   vars:
-    zookeeper_servers: xyz
+    zks: xyz
 
   roles:
     - role: sleighzy.zookeeper
       zookeeper_servers:
-        - {{ zookeeper_servers }}
+        - "{{ zks }}"
 
 - hosts: kafka-nodes
   roles:
