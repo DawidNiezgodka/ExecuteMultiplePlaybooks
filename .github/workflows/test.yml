@@ -46,7 +46,7 @@ jobs:
               --extra-vars file_name=from_all.txt
               <<check_extra_opt>>
               --extra-vars file_content=info_from_check_extra_opt
-                <<setup>>
+              <<setup>>
               <<check_roles>>
-            --extra-vars zookeeper_servers=localhost
+              --extra-vars zookeeper_servers=localhost
             
