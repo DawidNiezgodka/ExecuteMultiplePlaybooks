@@ -54,7 +54,9 @@ async function run() {
     // todo: if extra options exist
     console.log(`Extra options input: ${extraOptions}`);
     const phaseNameToExtraOptions = parseExtraOptions(extraOptions);
-    console.log(`Extracted options: ${phaseNameToExtraOptions}`);
+    phaseNameToExtraOptions.forEach((value, key) => {
+      console.log(`Key: ${key} ==> ${value}`);
+    });
 
     const extraOptionsForAllPhases = phaseNameToExtraOptions['all'] || [];
     // Assumption: Each subdirectory contains a main.yml playbook which is the entrypoint
