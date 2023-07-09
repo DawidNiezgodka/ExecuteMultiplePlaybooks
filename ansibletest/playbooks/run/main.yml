@@ -7,4 +7,5 @@
 - hosts: kafka-nodes
   roles:
     - role: sleighzy.kafka
+      kafka_download_base_url: https://archive.apache.org/dist/kafka
 

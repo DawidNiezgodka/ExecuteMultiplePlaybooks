@@ -17,9 +17,6 @@ async function run() {
     const executionOrder = core.getInput('execution_order', { required: true });
 
 
-    // TODO: handle requirements JSON
-    // setup -> setup_requirements.yml
-    // preload -> preload_requirements.yml etc
     const requirements = core.getInput('requirements');
     const privateKey = core.getInput('private_key');
     const inventory = core.getInput('inventory_file_path');
@@ -56,6 +53,8 @@ async function run() {
     for (const playbook of exeOrderArr) {
       // Assumption: Each subdirectory contains a main.yml playbook which is the entrypoint
       // to the given phase's logic
+
+      // TODO: check if the folder contains the file; if not, skip it
       const currentPlaybook = path.join(playbookDir, playbook, 'main.yml');
       // ./playbook_dir/phase_dir/main.yml
       let cmd = prepareCommand(currentPlaybook, privateKey, inventory,
