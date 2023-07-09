@@ -52,7 +52,9 @@ async function run() {
     // Create a mapping between a phase name
     // and array of extra options for this particular phase
     // todo: if extra options exist
+    console.log(`Extra options input: ${extraOptions}`);
     const phaseNameToExtraOptions = parseExtraOptions(extraOptions);
+    console.log(`Extracted options: ${phaseNameToExtraOptions}`);
 
     const extraOptionsForAllPhases = phaseNameToExtraOptions['all'] || [];
     // Assumption: Each subdirectory contains a main.yml playbook which is the entrypoint
