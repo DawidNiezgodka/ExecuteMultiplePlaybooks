@@ -59,6 +59,9 @@ async function run() {
     });
 
     const extraOptionsForAllPhases = phaseNameToExtraOptions['all'] || [];
+    extraOptionsForAllPhases.forEach((value) => {
+        console.log(`Extra options for all phases: ${value}`);
+    });
     // Assumption: Each subdirectory contains a main.yml playbook which is the entrypoint
     // to the given phase's logic
     const results = {};
@@ -70,6 +73,9 @@ async function run() {
 
       // Check if phaseNameToExtraOptions contains extra options for the current phase
       const extraOptionsForGivenPhase = phaseNameToExtraOptions[phase] || [];
+      extraOptionsForAllPhases.forEach((value) => {
+        console.log(`Extra options for all phases: ${value}`);
+      });
       let cmd = prepareCommand(currentPlaybook, privateKey, inventory, knownHosts, sudo,
           extraOptionsForAllPhases, extraOptionsForGivenPhase);
 
