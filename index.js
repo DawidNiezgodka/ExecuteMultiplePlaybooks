@@ -14,6 +14,11 @@ async function run() {
     // Read required inputs
     const ansible_dir = core.getInput('ansible_directory', { required: true });
     const playbookDir = core.getInput('playbook_directory', { required: true });
+    // The execution order is a comma-separated list of phase names
+    // In the context of this action, the provided execution order
+    // is later called "phase order" (after converting the comma-separated list to an array)
+    // Execution order: "a, b, c"
+    // Phase order: ["a", "b", "c"]
     const executionOrder = core.getInput('execution_order', { required: true });
     // Read optional inputs
     const requirements = core.getInput('requirements');
@@ -47,7 +52,7 @@ async function run() {
     // by the subdirectories of the playbook directory.
     // For example, if the user provides "a, b, c" as the execution order,
     // then the playbook directory must contain subdirectories named "a", "b", and "c"
-    if(!validatePlaybookPhases(phaseOrder, phaseDirs)) {
+    if(!validatePhases(phaseOrder, phaseDirs)) {
         core.setFailed('The execution order does not match the names of the phase directories');
         return;
     }
@@ -59,7 +64,8 @@ async function run() {
     // Example: "setup" -> ["-private-key abc.key"]
     const phaseNameToExtraOptions = parseExtraOptions(extraOptions);
 
-    // The main logic of the action - executing multiple playbooks according to the provided execution order
+    // The main logic of the action - executing multiple playbooks
+    // according to the provided execution order
     // and with the provided options
     const results = await executeMultiplePlaybooks(phaseOrder, playbookDir, privateKey,
         inventory, knownHosts, sudo, phaseNameToExtraOptions);
@@ -125,7 +131,7 @@ async function extractPhaseDirs(mainDirPath) {
  * @param phaseSubDirs extracted phase directories, i.e.: subdirectories of the playbook directory
  * @returns {boolean}
  */
-function validatePlaybookPhases(providedPhaseOrder, phaseSubDirs) {
+function validatePhases(providedPhaseOrder, phaseSubDirs) {
   if (providedPhaseOrder.length !== phaseSubDirs.length) {
     return false;
   }
@@ -140,6 +146,18 @@ function validatePlaybookPhases(providedPhaseOrder, phaseSubDirs) {
   return true;
 }
 
+/**
+ * Executes a number of playbooks according to the provided phase order.
+ * @param phaseOrder the order in which the playbooks should be executed
+ * @param playbookDir the directory that contains the playbooks, each playbook is located in a subdirectory
+ * that represents a phase
+ * @param privateKey ...
+ * @param inventory ...
+ * @param knownHosts known host configuration
+ * @param sudo whether to use sudo
+ * @param phaseNameToExtraOptions a data structure that maps each phase name to a list of additional options
+ * @returns {Promise<{}>} the result of processing each playbook (a Map)
+ */
 async function executeMultiplePlaybooks(phaseOrder, playbookDir,
                                         privateKey, inventory, knownHosts, sudo,
                                         phaseNameToExtraOptions) {
@@ -156,11 +174,9 @@ async function executeMultiplePlaybooks(phaseOrder, playbookDir,
     await exec.exec(cmd, null, {
       listeners: {
         stdout: function (data) {
-          console.log("Writing to stdout");
           currOutput += data.toString()
         },
         stderr: function (data) {
-          console.log("Writing to stderr");
           currOutput += data.toString()
         }
       }
@@ -171,6 +187,11 @@ async function executeMultiplePlaybooks(phaseOrder, playbookDir,
   return results;
 }
 
+/**
+ * Parses the multiline input parameter that contains additional options
+ * @param extraOptions the multiline input parameter (string) that contains additional options
+ * @returns {Map<any, any>} a data structure that maps each phase name to a list of additional options
+ */
 function parseExtraOptions(extraOptions) {
   const groupPattern = /<<(.+)>>\n([^<]+)/g;
   let groupNameToCommands = new Map();
@@ -185,9 +206,17 @@ function parseExtraOptions(extraOptions) {
   return groupNameToCommands;
 }
 
-
-//       let cmd = prepareCommand(currentPlaybook, privateKey, inventory, knownHosts, sudo,
-//           extraOptionsForAllPhases, extraOptionsForGivenPhase);
+/**
+ * ...
+ * @param playbook
+ * @param privateKey
+ * @param inventory
+ * @param knownHosts
+ * @param sudo
+ * @param phaseNameToExtraOptions
+ * @param phase
+ * @returns {string}
+ */
 function prepareCommand(playbook, privateKey, inventory, knownHosts, sudo,
                         phaseNameToExtraOptions, phase) {
 
@@ -260,7 +289,7 @@ run();
 module.exports = {
     convertExeOrderStrToArray: convertExecutionOrderToPhaseArray,
     extractPhaseDirs,
-    isOrderIdentical: validatePlaybookPhases,
+    isOrderIdentical: validatePhases,
     prepareCommand,
     run
 };
