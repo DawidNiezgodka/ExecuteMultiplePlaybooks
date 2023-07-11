@@ -27,6 +27,7 @@ async function run() {
     const knownHosts = core.getInput('known_hosts');
     const sudo = core.getInput('sudo');
     const extraOptions = core.getInput('extra_options');
+    const excludeDirs = core.getInput('exclude_dirs');
 
     // Change the current working directory to the ansible directory
     if (path.resolve(ansible_dir) !== path.resolve(process.cwd())) {
@@ -47,7 +48,7 @@ async function run() {
 
     // Extract the subdirectories of the playbook directory
     // Each subdirectory represents a (benchmark) phase
-    const phaseDirs = await extractPhaseDirs(playbookDir);
+    const phaseDirs = await extractPhaseDirs(playbookDir, excludeDirs);
     // Check whether the phases provided by the user match the phases represented
     // by the subdirectories of the playbook directory.
     // For example, if the user provides "a, b, c" as the execution order,
@@ -107,20 +108,28 @@ function convertExecutionOrderToPhaseArray(executionOrder) {
   return executionOrder ? executionOrder.split(',').map(item => item.trim()) : [];
 }
 
-/**
- *
- * @param mainDirPath
- * @returns {Promise<string[]>}
- */
-async function extractPhaseDirs(mainDirPath) {
-  console.log(`Extracting phase directories from ${process.cwd()} and ${mainDirPath}`)
-    const directories = await fs.readdir(mainDirPath, { withFileTypes: true });
-    // Dirent[] -> String[]
-    return directories
-        .filter(dirent => dirent.isDirectory())
-        .map(dirent => dirent.name);
-}
 
+async function extractPhaseDirs(mainDirPath, exclude_dirs) {
+  console.log(`Extracting phase directories from ${process.cwd()} and ${mainDirPath}`)
+
+  let excludeDirsArray = [];
+  if (exclude_dirs) {
+    // Transform the comma-separated values into an array
+    excludeDirsArray = exclude_dirs.split(',').map(dir => dir.trim());
+  }
+
+  const directories = await fs.readdir(mainDirPath, { withFileTypes: true });
+
+  let dirNames = directories
+      .filter(dirent => dirent.isDirectory())
+      .map(dirent => dirent.name);
+
+  if (excludeDirsArray.length > 0) {
+    dirNames = dirNames.filter(name => !excludeDirsArray.includes(name));
+  }
+
+  return dirNames;
+}
 
 /**
  * First, checks if the number of elements in the execution order array
