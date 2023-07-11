@@ -110,7 +110,6 @@ function convertExecutionOrderToPhaseArray(executionOrder) {
 
 
 async function extractPhaseDirs(mainDirPath, exclude_dirs) {
-  console.log(`Extracting phase directories from ${process.cwd()} and ${mainDirPath}`)
 
   let excludeDirsArray = [];
   if (exclude_dirs) {
@@ -118,15 +117,24 @@ async function extractPhaseDirs(mainDirPath, exclude_dirs) {
     excludeDirsArray = exclude_dirs.split(',').map(dir => dir.trim());
   }
 
+  let commaSeparated = excludeDirsArray.join(", ");
+  console.log("Dir names to exclude: " + commaSeparated);
+
   const directories = await fs.readdir(mainDirPath, { withFileTypes: true });
 
   let dirNames = directories
       .filter(dirent => dirent.isDirectory())
       .map(dirent => dirent.name);
 
+  commaSeparated = dirNames.join(", ");
+  console.log("Dir names before exclusion: " + commaSeparated);
+
   if (excludeDirsArray.length > 0) {
     dirNames = dirNames.filter(name => !excludeDirsArray.includes(name));
   }
+
+  commaSeparated = dirNames.join(", ");
+  console.log("Dir names after exclusion: " + commaSeparated);
 
   return dirNames;
 }
