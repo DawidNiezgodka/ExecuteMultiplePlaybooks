@@ -53,6 +53,12 @@ inputs:
     required: false
     default: 'false'
 
+  exclude_dirs:
+    description: |
+      A comma-separated list of directories which are in the playbook directory
+      but should be excluded from execution as they do not represent phases
+    required: false
+
 outputs:
   results:
     description: Output from each playbook run in JSON format.
