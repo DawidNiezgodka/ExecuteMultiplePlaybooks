@@ -203,7 +203,7 @@ function parseExtraOptionsString(extraOptions) {
 
 function parseExtraOptionsFile(yamlFilePath) {
   console.log("Parsing extra options file: " + yamlFilePath);
-  const fileContents = fs.readFileSync(yamlFilePath, 'utf8');
+  const fileContents = fss.readFileSync(yamlFilePath, 'utf8');
   const yamlData = jsyaml.load(fileContents);
 
   let groupNameToCommands = new Map();
