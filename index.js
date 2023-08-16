@@ -217,8 +217,6 @@ function parseExtraOptionsFile(yamlFilePath) {
     console.log(`Parsed ${groupNameToCommands.get(groupName).length} options for group ${groupName}`);
   }
 
-
-
   return groupNameToCommands;
 }
 
