@@ -4,7 +4,8 @@ const fs = require('fs').promises;
 const fss = require('fs');
 const path = require('path');
 const os = require('os');
-const yaml = require('js-yaml');
+const yaml = require('yaml')
+const jsyaml = require('js-yaml');
 
 // The logic for running a single playbook is based on
 // the idea presented in dawidd6/action-ansible-playbook
@@ -203,7 +204,7 @@ function parseExtraOptionsString(extraOptions) {
 function parseExtraOptionsFile(yamlFilePath) {
   console.log("Parsing extra options file: " + yamlFilePath);
   const fileContents = fs.readFileSync(yamlFilePath, 'utf8');
-  const yamlData = yaml.load(fileContents);
+  const yamlData = jsyaml.load(fileContents);
 
   let groupNameToCommands = new Map();
 
