@@ -201,6 +201,7 @@ function parseExtraOptionsString(extraOptions) {
 }
 
 function parseExtraOptionsFile(yamlFilePath) {
+  console.log("Parsing extra options file: " + yamlFilePath);
   const fileContents = fs.readFileSync(yamlFilePath, 'utf8');
   const yamlData = yaml.load(fileContents);
 
@@ -212,7 +213,11 @@ function parseExtraOptionsFile(yamlFilePath) {
       const commands = yamlData[groupName].options || [];
       groupNameToCommands.set(groupName, commands);
     }
+    // Provide info about the number of parsed options for a given group
+    console.log(`Parsed ${groupNameToCommands.get(groupName).length} options for group ${groupName}`);
   }
+
+
 
   return groupNameToCommands;
 }
