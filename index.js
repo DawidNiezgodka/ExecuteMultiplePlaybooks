@@ -26,8 +26,10 @@ async function run() {
     const inventory = core.getInput('inventory_file_path');
     const knownHosts = core.getInput('known_hosts');
     const sudo = core.getInput('sudo');
-    const extraOptions = core.getInput('extra_options');
+    const extraOptionsString = core.getInput('extra_options_string');
+    const extraOptionsFile = core.getInput('extra_options_file');
     const excludeDirs = core.getInput('exclude_dirs');
+
 
     // Change the current working directory to the ansible directory
     if (path.resolve(ansible_dir) !== path.resolve(process.cwd())) {
@@ -58,18 +60,15 @@ async function run() {
         return;
     }
 
-    // Process the multiline input parameter that contains additional options
-    // for each phase's playbook.
-    // The result of the processing is a data structure that maps each phase name
-    // to a list of additional options.
-    // Example: "setup" -> ["-private-key abc.key"]
-    const phaseNameToExtraOptions = parseExtraOptions(extraOptions);
+    // Process the multiline input string and the file with additional options
+    // to create a data structure that maps each phase name to a list of additional options
+    let allExtraOptions = fetchExtraOptions(extraOptionsString, extraOptionsFile);
 
     // The main logic of the action - executing multiple playbooks
     // according to the provided execution order
     // and with the provided options
     const results = await executeMultiplePlaybooks(phaseOrder, playbookDir, privateKey,
-        inventory, knownHosts, sudo, phaseNameToExtraOptions);
+        inventory, knownHosts, sudo, allExtraOptions);
     core.setOutput('results', JSON.stringify(results));
 
   }
@@ -163,6 +162,26 @@ function validatePhases(providedPhaseOrder, phaseSubDirs) {
   return true;
 }
 
+function fetchExtraOptions(extraOptionsString, extraOptionsFile) {
+  let processedExtraOptionsString;
+  let processedExtraOptionsFile;
+
+  // Process the multiline input parameter that contains additional options
+  // for each phase's playbook.
+  // The result of the processing is a data structure that maps each phase name
+  // to a list of additional options.
+  // Example: "setup" -> ["-private-key abc.key"]
+  if (extraOptionsString) {
+    processedExtraOptionsString = parseExtraOptionsString(extraOptionsString);
+  }
+
+  if (extraOptionsFile) {
+    processedExtraOptionsFile = parseExtraOptionsFile(extraOptionsFile);
+  }
+  return mergeExtraOptions(processedExtraOptionsString, processedExtraOptionsFile);
+}
+
+
 /**
  * Executes a number of playbooks according to the provided phase order.
  * @param phaseOrder the order in which the playbooks should be executed
@@ -209,7 +228,7 @@ async function executeMultiplePlaybooks(phaseOrder, playbookDir,
  * @param extraOptions the multiline input parameter (string) that contains additional options
  * @returns {Map<any, any>} a data structure that maps each phase name to a list of additional options
  */
-function parseExtraOptions(extraOptions) {
+function parseExtraOptionsString(extraOptions) {
   const groupPattern = /<<(.+)>>\n([^<]+)/g;
   let groupNameToCommands = new Map();
   let match;

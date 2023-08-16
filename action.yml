@@ -38,7 +38,7 @@ inputs:
     description: Content of the known hosts. If not provided, the host key checking is disabled.
     required: false
 
-  extra_options:
+  extra_options_string:
     description: |
       A multi-line string of extra options to pass to ansible-playbooks.
       Please provide the options in the following way:
@@ -47,6 +47,11 @@ inputs:
       3. extra variables that should be applied to all playbooks should be in the 
        group name <<all>>
     required: false
+
+  extra_options_file:
+    description: |
+      A file containing extra options to pass to ansible-playbooks.
+      
 
   sudo:
     description: Whether to use sudo for executing commands
