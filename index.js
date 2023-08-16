@@ -4,7 +4,7 @@ const fs = require('fs').promises;
 const fss = require('fs');
 const path = require('path');
 const os = require('os');
-const yaml = require('yaml')
+const yaml = require('js-yaml');
 
 // The logic for running a single playbook is based on
 // the idea presented in dawidd6/action-ansible-playbook
@@ -178,7 +178,66 @@ function fetchExtraOptions(extraOptionsString, extraOptionsFile) {
   if (extraOptionsFile) {
     processedExtraOptionsFile = parseExtraOptionsFile(extraOptionsFile);
   }
-  return mergeExtraOptions(processedExtraOptionsString, processedExtraOptionsFile);
+  return mergeMaps(processedExtraOptionsString, processedExtraOptionsFile);
+}
+
+/**
+ * Parses the multiline input parameter that contains additional options
+ * @param extraOptions the multiline input parameter (string) that contains additional options
+ * @returns {Map<any, any>} a data structure that maps each phase name to a list of additional options
+ */
+function parseExtraOptionsString(extraOptions) {
+  const groupPattern = /<<(.+)>>\n([^<]+)/g;
+  let groupNameToCommands = new Map();
+  let match;
+
+  while ((match = groupPattern.exec(extraOptions)) !== null) {
+    let groupName = match[1];
+    let commands = match[2].trim().split('\n');
+    groupNameToCommands.set(groupName, commands);
+  }
+
+  return groupNameToCommands;
+}
+
+function parseExtraOptionsFile(yamlFilePath) {
+  const fileContents = fs.readFileSync(yamlFilePath, 'utf8');
+  const yamlData = yaml.load(fileContents);
+
+  let groupNameToCommands = new Map();
+
+  for (let groupName in yamlData) {
+    // eslint-disable-next-line no-prototype-builtins
+    if (yamlData.hasOwnProperty(groupName)) {
+      const commands = yamlData[groupName].options || [];
+      groupNameToCommands.set(groupName, commands);
+    }
+  }
+
+  return groupNameToCommands;
+}
+
+function mergeMaps(map1, map2) {
+  let mergedMap = new Map();
+  // Iterate over entries of the first map
+  map1.forEach((value, key) => {
+    if (map2.has(key)) {
+      // If the key exists in both maps, merge the values and remove duplicates
+      let mergedArray = [...new Set([...value, ...map2.get(key)])];
+      mergedMap.set(key, mergedArray);
+    } else {
+      // If the key exists only in map1, add it to mergedMap
+      mergedMap.set(key, value);
+    }
+  });
+
+  map2.forEach((value, key) => {
+    if (!map1.has(key)) {
+      mergedMap.set(key, value);
+    }
+  });
+
+  return mergedMap;
 }
 
 
@@ -223,24 +282,6 @@ async function executeMultiplePlaybooks(phaseOrder, playbookDir,
   return results;
 }
 
-/**
- * Parses the multiline input parameter that contains additional options
- * @param extraOptions the multiline input parameter (string) that contains additional options
- * @returns {Map<any, any>} a data structure that maps each phase name to a list of additional options
- */
-function parseExtraOptionsString(extraOptions) {
-  const groupPattern = /<<(.+)>>\n([^<]+)/g;
-  let groupNameToCommands = new Map();
-  let match;
-
-  while ((match = groupPattern.exec(extraOptions)) !== null) {
-    let groupName = match[1];
-    let commands = match[2].trim().split('\n');
-    groupNameToCommands.set(groupName, commands);
-  }
-
-  return groupNameToCommands;
-}
 
 /**
  * ...
