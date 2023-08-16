@@ -228,6 +228,12 @@ function parseExtraOptionsFile(yamlFilePath) {
 }
 
 function mergeMaps(map1, map2) {
+  if (!map1) {
+      return map2;
+  }
+  if (!map2) {
+      return map1;
+  }
   let mergedMap = new Map();
   // Iterate over entries of the first map
   map1.forEach((value, key) => {
