@@ -264,38 +264,35 @@ function mergeMaps(map1, map2) {
 function replaceCustomEscapedLiteralsInMap(commandMap, secrets = {}) {
   const regex = /%\[\[\s*(env|secrets)\.(\w+)\s*]]/g;
 
-  // printing secrets
-  console.log(secrets);
-  // printing env
-  console.log(process.env.GITHUB_WORKSPACE);
+  const transformedMap = new Map();
 
-  console.log("Printing map before replacement");
-  commandMap.forEach((value, key) => {
-    console.log(key, '->', value);
-  });
-  const transformedMap = {};
+  commandMap.forEach((commands, phase) => {
+    const transformedCommands = [];
 
-  for (let phase in commandMap) {
-    transformedMap[phase] = commandMap[phase].map(command => {
-      console.log("Current command is: " + command);
-      return command.replace(regex, (match, type, key) => {
+    for (let i = 0; i < commands.length; i++) {
+      let command = commands[i];
+
+      let match;
+      while ((match = regex.exec(command)) !== null) {
+        const type = match[1];
+        const key = match[2];
+
         if (type === "env") {
-          return process.env[key] || match;
+          command = command.replace(match[0], process.env[key] || match[0]);
         } else if (type === "secrets") {
-          return secrets[key] || match;
+          command = command.replace(match[0], secrets[key] || match[0]);
         }
-        return match;
-      });
-    });
-  }
+      }
 
-  console.log("Printing map after replacement");
-  commandMap.forEach((value, key) => {
-    console.log(key, '->', value);
+      transformedCommands.push(command);
+    }
+
+    transformedMap.set(phase, transformedCommands);
   });
 
   return transformedMap;
 }
+
 
 
 /**
