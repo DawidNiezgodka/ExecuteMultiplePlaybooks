@@ -52,6 +52,12 @@ inputs:
     description: |
       A path to a file containing extra options to pass to ansible-playbooks.
       The path should be relative to the repository root.
+
+  secrets:
+    description: |
+      A JSON string mapping secret names to their values.
+      The secret names should be the same as the ones used in the playbooks.
+    required: false
       
 
   sudo:

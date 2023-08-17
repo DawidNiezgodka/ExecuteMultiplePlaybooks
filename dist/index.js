@@ -36,6 +36,8 @@ async function run() {
     const extraOptionsString = core.getInput('extra_options_string');
     const extraOptionsFile = core.getInput('extra_options_file');
     const excludeDirs = core.getInput('exclude_dirs');
+    const secretsStr = core.getInput('secrets');
+    const secrets = JSON.parse(secretsStr);
 
 
     // Change the current working directory to the ansible directory
@@ -70,6 +72,8 @@ async function run() {
     // Process the multiline input string and the file with additional options
     // to create a data structure that maps each phase name to a list of additional options
     let allExtraOptions = fetchExtraOptions(extraOptionsString, extraOptionsFile);
+    // Replace escaped characters with actual values
+    allExtraOptions = replaceCustomEscapedLiteralsInMap(allExtraOptions, secrets);
 
     // The main logic of the action - executing multiple playbooks
     // according to the provided execution order
@@ -254,6 +258,34 @@ function mergeMaps(map1, map2) {
   });
 
   return mergedMap;
+}
+
+/**
+ * Replace custom escaped strings in a command map with respective values from env or secrets.
+ *
+ * @param {Object} commandMap - The input map with phase names and arrays of commands.
+ * @param {Object} secrets - An object containing the secrets, if any.
+ * @returns {Object} - The transformed map.
+ */
+function replaceCustomEscapedLiteralsInMap(commandMap, secrets = {}) {
+  const regex = /%\[\[\s*(env|secrets)\.(\w+)\s*]]/g;
+
+  const transformedMap = {};
+
+  for (let phase in commandMap) {
+    transformedMap[phase] = commandMap[phase].map(command => {
+      return command.replace(regex, (match, type, key) => {
+        if (type === "env") {
+          return process.env[key] || match;
+        } else if (type === "secrets") {
+          return secrets[key] || match;
+        }
+        return match;
+      });
+    });
+  }
+
+  return transformedMap;
 }
 
 
