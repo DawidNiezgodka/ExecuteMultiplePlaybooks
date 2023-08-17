@@ -270,6 +270,10 @@ function mergeMaps(map1, map2) {
 function replaceCustomEscapedLiteralsInMap(commandMap, secrets = {}) {
   const regex = /%\[\[\s*(env|secrets)\.(\w+)\s*]]/g;
 
+  console.log("Printing map before replacement");
+  commandMap.forEach((value, key) => {
+    console.log(key, '->', value);
+  });
   const transformedMap = {};
 
   for (let phase in commandMap) {
@@ -284,6 +288,11 @@ function replaceCustomEscapedLiteralsInMap(commandMap, secrets = {}) {
       });
     });
   }
+
+  console.log("Printing map after replacement");
+  commandMap.forEach((value, key) => {
+    console.log(key, '->', value);
+  });
 
   return transformedMap;
 }
