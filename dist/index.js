@@ -38,14 +38,6 @@ async function run() {
     const excludeDirs = core.getInput('exclude_dirs');
     const secretsStr = core.getInput('secrets');
     const secrets = JSON.parse(secretsStr);
-    const numOfDistinctSecrets = Object.keys(secrets).length;
-    console.log(numOfDistinctSecrets);
-    const secretName = "TEST123"; // Replace with the name of the secret you want to check
-    if (secretName in secrets) {
-      console.log(`The secret "${secretName}" exists in the object.`);
-    } else {
-      console.log(`The secret "${secretName}" does not exist in the object.`);
-    }
 
     // Change the current working directory to the ansible directory
     if (path.resolve(ansible_dir) !== path.resolve(process.cwd())) {
