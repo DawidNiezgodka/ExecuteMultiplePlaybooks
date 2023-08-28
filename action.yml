@@ -2,10 +2,10 @@ name: "Run multiple Ansible playbooks"
 description: "Run Ansible playbooks in phase that represent setup order"
 
 inputs:
-  ## Required
   ansible_directory:
     description: Directory where Ansible files are located.
-    required: true
+    required: false
+    default: "ansible"
 
   playbook_directory:
     description: | 
@@ -18,7 +18,11 @@ inputs:
     description: Order in which to execute the playbooks (comma-separated list of folder names).
     required: true
 
-## Optional
+  exclude_dirs:
+    description: |
+      A comma-separated list of directories which are in the playbook directory
+      but should be excluded from execution as they do not represent phases
+    required: false
 
   requirements:
     description: JSON string mapping playbook names to galaxy requirement
@@ -58,18 +62,11 @@ inputs:
       A JSON string mapping secret names to their values.
       The secret names should be the same as the ones used in the playbooks.
     required: false
-      
 
   sudo:
     description: Whether to use sudo for executing commands
     required: false
     default: 'false'
-
-  exclude_dirs:
-    description: |
-      A comma-separated list of directories which are in the playbook directory
-      but should be excluded from execution as they do not represent phases
-    required: false
 
 outputs:
   results:
