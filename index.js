@@ -32,7 +32,14 @@ async function run() {
     const excludeDirs = core.getInput('exclude_dirs');
     const secretsStr = core.getInput('secrets');
     const secrets = JSON.parse(secretsStr);
-
+    const numOfDistinctSecrets = Object.keys(secrets).length;
+    console.log(numOfDistinctSecrets);
+    const secretName = "TEST123"; // Replace with the name of the secret you want to check
+    if (secretName in secrets) {
+      console.log(`The secret "${secretName}" exists in the object.`);
+    } else {
+      console.log(`The secret "${secretName}" does not exist in the object.`);
+    }
 
     // Change the current working directory to the ansible directory
     if (path.resolve(ansible_dir) !== path.resolve(process.cwd())) {
@@ -67,6 +74,8 @@ async function run() {
     // to create a data structure that maps each phase name to a list of additional options
     let allExtraOptions = fetchExtraOptions(extraOptionsString, extraOptionsFile);
     // Replace escaped characters with actual values
+    // TODO: Add a flag `withCustomEscapeChars` to the action's inputs
+    // If false, skip the replacement of escaped characters
     allExtraOptions = replaceCustomEscapedLiteralsInMap(allExtraOptions, secrets);
 
     // The main logic of the action - executing multiple playbooks
