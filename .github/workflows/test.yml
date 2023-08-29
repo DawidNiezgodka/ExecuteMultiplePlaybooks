@@ -41,6 +41,7 @@ jobs:
           execution_order: setup,check_extra_opt, check_roles
           requirements: requirements.yml
           exclude_dirs: dir_to_exclude
+          secrets: ${{ toJson(secrets) }}
           extra_options_string: |
               <<all>>
               --extra-vars file_name=from_all.txt
