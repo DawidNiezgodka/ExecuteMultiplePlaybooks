@@ -11,7 +11,7 @@ inputs:
     description: | 
       Directory where playbook subfolders are located.
       Assumes that playbooks are located in the dir pointed to by ansible_directory.
-    required: true
+    required: false
     default: "playbooks"
 
   execution_order:

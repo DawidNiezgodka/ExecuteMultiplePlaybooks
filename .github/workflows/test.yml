@@ -37,12 +37,11 @@ jobs:
         uses: ./
         with:
           ansible_directory: ansibletest
-          playbook_directory: playbooks
           private_key: ${{secrets.PK}}
           execution_order: setup,check_extra_opt, check_roles
           requirements: requirements.yml
           exclude_dirs: dir_to_exclude
-          extra_options: |
+          extra_options_string: |
               <<all>>
               --extra-vars file_name=from_all.txt
               <<check_extra_opt>>
