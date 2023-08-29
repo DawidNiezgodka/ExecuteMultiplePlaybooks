@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - exclude_dirs
+      - extra-options-from-file
 
 
 jobs:
