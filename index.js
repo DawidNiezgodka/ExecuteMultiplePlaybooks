@@ -68,7 +68,12 @@ async function run() {
     // Replace escaped characters with actual values
     // TODO: Add a flag `withCustomEscapeChars` to the action's inputs
     // If false, skip the replacement of escaped characters
-    allExtraOptions = replaceCustomEscapedLiteralsInMap(allExtraOptions, secrets);
+
+    // Check if allExtraOptions is not empty and not null
+    if (allExtraOptions && allExtraOptions.size > 0) {
+      console.log("Replacing escaped literals in extra options")
+      allExtraOptions = replaceCustomEscapedLiteralsInMap(allExtraOptions, secrets);
+    }
 
     // The main logic of the action - executing multiple playbooks
     // according to the provided execution order
@@ -169,6 +174,10 @@ function validatePhases(providedPhaseOrder, phaseSubDirs) {
 }
 
 function fetchExtraOptions(extraOptionsString, extraOptionsFile) {
+  if (!extraOptionsString && !extraOptionsFile) {
+    console.log("No extra options provided")
+    return new Map(); // Return an empty map
+  }
   let processedExtraOptionsString;
   let processedExtraOptionsFile;
 
@@ -371,9 +380,12 @@ function prepareCommand(playbook, privateKey, inventory, knownHosts, sudo,
     process.env.ANSIBLE_HOST_KEY_CHECKING = "False"
   }
 
-  appendExtraOptionsForGivenPhase(commandComponents, phaseNameToExtraOptions, phase);
-  appendExtraOptionForWhichApplyToAllPhases(commandComponents, phaseNameToExtraOptions);
-
+  // check if phaseNameToExtraOptions is not empty and not null
+  if (phaseNameToExtraOptions && phaseNameToExtraOptions.size > 0) {
+    console.log(`Appending extra options for phase ${phase}`)
+    appendExtraOptionsForGivenPhase(commandComponents, phaseNameToExtraOptions, phase);
+    appendExtraOptionForWhichApplyToAllPhases(commandComponents, phaseNameToExtraOptions);
+  }
 
   //  adds the elements "sudo", "-E", "env", and PATH=${process.env.PATH}
   //  to the front of the array,

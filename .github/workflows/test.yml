@@ -50,4 +50,3 @@ jobs:
               <<setup>>
               <<check_roles>>
               --extra-vars zks=localhost
-            
