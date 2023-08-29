@@ -36,7 +36,7 @@ jobs:
       - name: test
         uses: ./
         with:
-          ansible_directory: ./ansibletest
+          ansible_directory: ansibletest
           playbook_directory: playbooks
           private_key: ${{secrets.PK}}
           execution_order: setup,check_extra_opt, check_roles
