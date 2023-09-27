@@ -1,0 +1,11 @@
+all:
+  options:
+    - "--private-key /home/runner/.ssh/t_k"
+run:
+  options:
+    - "--extra-vars jar_source_path=%[[ env.GITHUB_WORKSPACE ]]/benchmarks/test_benchmark/benchmark/benchmark.jar"
+    - "--extra-vars jar_target_path=/home/%[[ secrets.GCP_USER_1 ]]/bench/bench.jar"
+    - "--extra-vars home_dir=/home/%[[ secrets.GCP_USER_1 ]]"
+    - "--extra-vars jar_path=/home/%[[ secrets.GCP_USER_1 ]]/bench/bench.jar"
+    - "--extra-vars result_local_path=%[[ env.GITHUB_WORKSPACE ]]"
+

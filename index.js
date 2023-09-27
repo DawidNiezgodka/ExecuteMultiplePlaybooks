@@ -13,8 +13,8 @@ const jsyaml = require('js-yaml');
 async function run() {
   try {
     // Read required inputs
-    const ansible_dir = core.getInput('ansible_directory', { required: true });
-    const playbookDir = core.getInput('playbook_directory', { required: true });
+    const ansibleDir = core.getInput('ansible_directory');
+    const playbookDir = core.getInput('playbook_directory');
     // The execution order is a comma-separated list of phase names
     // In the context of this action, the provided execution order
     // is later called "phase order" (after converting the comma-separated list to an array)
@@ -34,10 +34,10 @@ async function run() {
     const secrets = JSON.parse(secretsStr);
 
     // Change the current working directory to the ansible directory
-    if (path.resolve(ansible_dir) !== path.resolve(process.cwd())) {
-      console.log(`Changing directory to ${ansible_dir}`)
-      process.chdir(ansible_dir);
-      core.saveState("ansible_directory", ansible_dir);
+    if (path.resolve(ansibleDir) !== path.resolve(process.cwd())) {
+      console.log(`Changing directory to ${ansibleDir}`)
+      process.chdir(ansibleDir);
+      core.saveState("ansible_directory", ansibleDir);
     }
 
     // Install the requirements if the requirements file is provided
@@ -421,7 +421,7 @@ function appendExtraOptionForWhichApplyToAllPhases(commandComponents, phaseNameT
 function handleOptionalFile(inputFile, outputFileName, flagName, commandComponents) {
   if (inputFile) {
     const file = `.${outputFileName}`;
-    fss.writeFileSync(file, file + os.EOL, { mode: 0o600 });
+    fss.writeFileSync(file, file + os.EOL, { mode: 0o600});
     core.saveState(outputFileName, file);
     commandComponents.push(`--${flagName}`);
     commandComponents.push(file);

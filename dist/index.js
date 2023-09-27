@@ -19,8 +19,8 @@ const jsyaml = __nccwpck_require__(1917);
 async function run() {
   try {
     // Read required inputs
-    const ansible_dir = core.getInput('ansible_directory', { required: true });
-    const playbookDir = core.getInput('playbook_directory', { required: true });
+    const ansibleDir = core.getInput('ansible_directory');
+    const playbookDir = core.getInput('playbook_directory');
     // The execution order is a comma-separated list of phase names
     // In the context of this action, the provided execution order
     // is later called "phase order" (after converting the comma-separated list to an array)
@@ -40,10 +40,10 @@ async function run() {
     const secrets = JSON.parse(secretsStr);
 
     // Change the current working directory to the ansible directory
-    if (path.resolve(ansible_dir) !== path.resolve(process.cwd())) {
-      console.log(`Changing directory to ${ansible_dir}`)
-      process.chdir(ansible_dir);
-      core.saveState("ansible_directory", ansible_dir);
+    if (path.resolve(ansibleDir) !== path.resolve(process.cwd())) {
+      console.log(`Changing directory to ${ansibleDir}`)
+      process.chdir(ansibleDir);
+      core.saveState("ansible_directory", ansibleDir);
     }
 
     // Install the requirements if the requirements file is provided
@@ -74,7 +74,12 @@ async function run() {
     // Replace escaped characters with actual values
     // TODO: Add a flag `withCustomEscapeChars` to the action's inputs
     // If false, skip the replacement of escaped characters
-    allExtraOptions = replaceCustomEscapedLiteralsInMap(allExtraOptions, secrets);
+
+    // Check if allExtraOptions is not empty and not null
+    if (allExtraOptions && allExtraOptions.size > 0) {
+      console.log("Replacing escaped literals in extra options")
+      allExtraOptions = replaceCustomEscapedLiteralsInMap(allExtraOptions, secrets);
+    }
 
     // The main logic of the action - executing multiple playbooks
     // according to the provided execution order
@@ -175,6 +180,10 @@ function validatePhases(providedPhaseOrder, phaseSubDirs) {
 }
 
 function fetchExtraOptions(extraOptionsString, extraOptionsFile) {
+  if (!extraOptionsString && !extraOptionsFile) {
+    console.log("No extra options provided")
+    return new Map(); // Return an empty map
+  }
   let processedExtraOptionsString;
   let processedExtraOptionsFile;
 
@@ -377,9 +386,12 @@ function prepareCommand(playbook, privateKey, inventory, knownHosts, sudo,
     process.env.ANSIBLE_HOST_KEY_CHECKING = "False"
   }
 
-  appendExtraOptionsForGivenPhase(commandComponents, phaseNameToExtraOptions, phase);
-  appendExtraOptionForWhichApplyToAllPhases(commandComponents, phaseNameToExtraOptions);
-
+  // check if phaseNameToExtraOptions is not empty and not null
+  if (phaseNameToExtraOptions && phaseNameToExtraOptions.size > 0) {
+    console.log(`Appending extra options for phase ${phase}`)
+    appendExtraOptionsForGivenPhase(commandComponents, phaseNameToExtraOptions, phase);
+    appendExtraOptionForWhichApplyToAllPhases(commandComponents, phaseNameToExtraOptions);
+  }
 
   //  adds the elements "sudo", "-E", "env", and PATH=${process.env.PATH}
   //  to the front of the array,
@@ -415,7 +427,7 @@ function appendExtraOptionForWhichApplyToAllPhases(commandComponents, phaseNameT
 function handleOptionalFile(inputFile, outputFileName, flagName, commandComponents) {
   if (inputFile) {
     const file = `.${outputFileName}`;
-    fss.writeFileSync(file, file + os.EOL, { mode: 0o600 });
+    fss.writeFileSync(file, file + os.EOL, { mode: 0o600});
     core.saveState(outputFileName, file);
     commandComponents.push(`--${flagName}`);
     commandComponents.push(file);
