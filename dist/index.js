@@ -133,6 +133,10 @@ async function extractPhaseDirs(mainDirPath, exclude_dirs) {
     excludeDirsArray = exclude_dirs.split(',').map(dir => dir.trim());
   }
 
+  console.log("Main dir path: " + mainDirPath);
+  // Print current working dir
+  console.log("Current working dir: " + process.cwd());
+
   let commaSeparated = excludeDirsArray.join(", ");
   console.log("Dir names to exclude: " + commaSeparated);
 
