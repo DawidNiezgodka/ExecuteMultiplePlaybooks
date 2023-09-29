@@ -40,6 +40,8 @@ async function run() {
       core.saveState("ansible_directory", ansibleDir);
     }
 
+    console.log("PWD: " + process.cwd());
+
     // Install the requirements if the requirements file is provided
     if (requirements) {
       await handleRequirements(requirements);
