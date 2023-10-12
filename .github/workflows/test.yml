@@ -39,6 +39,7 @@ jobs:
           ansible_directory: ansibletest
           private_key: ${{secrets.PK}}
           execution_order: setup,check_extra_opt, check_roles
+          requirements: requirements.yml
           secrets: ${{ toJson(secrets) }}
           extra_options_string: |
               <<all>>
