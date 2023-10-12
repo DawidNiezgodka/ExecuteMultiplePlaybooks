@@ -35,7 +35,6 @@ async function run() {
     const sudo = core.getInput('sudo');
     const extraOptionsString = core.getInput('extra_options_string');
     const extraOptionsFile = core.getInput('extra_options_file');
-    const excludeDirs = core.getInput('exclude_dirs');
     const secretsStr = core.getInput('secrets');
     const secrets = JSON.parse(secretsStr);
 
@@ -56,16 +55,23 @@ async function run() {
     // Split the execution order string into an array
     // to facilitates the further processing of each playbook in a loop
     // Example: "a, b,   c" -> ["a", "b", "c"]
+    console.log("Printing execution order")
     const phaseOrder = convertExecutionOrderToPhaseArray(executionOrder);
-
+    phaseOrder.forEach((phase) => {
+        console.log("Phase: " + phase);
+    });
     // Extract the subdirectories of the playbook directory
     // Each subdirectory represents a (benchmark) phase
-    const phaseDirs = await extractPhaseDirs(playbookDir, excludeDirs);
+    console.log("Printing all dirs in playbook dir");
+    const allDirNames = await fetchAllDirNames(playbookDir);
+    allDirNames.forEach((phase) => {
+      console.log("Dirs: " + phase);
+    });
     // Check whether the phases provided by the user match the phases represented
     // by the subdirectories of the playbook directory.
-    // For example, if the user provides "a, b, c" as the execution order,
+    // For example, if the user parovides "a, b, c" as the execution order,
     // then the playbook directory must contain subdirectories named "a", "b", and "c"
-    if(!validatePhases(phaseOrder, phaseDirs)) {
+    if(!checkIfPlaybookDirHasRequiredDirs(phaseOrder, allDirNames)) {
         core.setFailed('The execution order does not match the names of the phase directories');
         return;
     }
@@ -127,58 +133,21 @@ function convertExecutionOrderToPhaseArray(executionOrder) {
 }
 
 
-async function extractPhaseDirs(mainDirPath, exclude_dirs) {
-
-  let excludeDirsArray = [];
-  if (exclude_dirs) {
-    // Transform the comma-separated values into an array
-    excludeDirsArray = exclude_dirs.split(',').map(dir => dir.trim());
-  }
+async function fetchAllDirNames(mainDirPath) {
 
   console.log("Main dir path: " + mainDirPath);
-  // Print current working dir
   console.log("Current working dir: " + process.cwd());
-
-  let commaSeparated = excludeDirsArray.join(", ");
-  console.log("Dir names to exclude: " + commaSeparated);
 
   const directories = await fs.readdir(mainDirPath, { withFileTypes: true });
 
-  let dirNames = directories
+  return directories
       .filter(dirent => dirent.isDirectory())
       .map(dirent => dirent.name);
-
-  commaSeparated = dirNames.join(", ");
-  console.log("Dir names before exclusion: " + commaSeparated);
-
-  if (excludeDirsArray.length > 0) {
-    dirNames = dirNames.filter(name => !excludeDirsArray.includes(name));
-  }
-
-  commaSeparated = dirNames.join(", ");
-  console.log("Dir names after exclusion: " + commaSeparated);
-
-  return dirNames;
 }
 
-/**
- * First, checks if the number of elements in the execution order array
- * matches the number of phase directories.
- * Then, checks whether there is a match
- * between the names of the elements in the execution order array and the names of phases
- * @param providedPhaseOrder execution order array, which is a result of the convertExecutionOrderToPhaseArray function
- * @param phaseSubDirs extracted phase directories, i.e.: subdirectories of the playbook directory
- * @returns {boolean}
- */
-function validatePhases(providedPhaseOrder, phaseSubDirs) {
-  if (providedPhaseOrder.length !== phaseSubDirs.length) {
-    return false;
-  }
-  let sortedInputPhases = [...providedPhaseOrder].sort();
-  let sortedPhaseSubDirs = [...phaseSubDirs].sort();
-
-  for (let i = 0; i < sortedInputPhases.length; i++) {
-    if (sortedInputPhases[i] !== sortedPhaseSubDirs[i]) {
+function checkIfPlaybookDirHasRequiredDirs(executionOrder, allDirs) {
+  for (let elem of executionOrder) {
+    if (!allDirs.includes(elem)) {
       return false;
     }
   }
@@ -444,8 +413,7 @@ run();
 
 module.exports = {
     convertExeOrderStrToArray: convertExecutionOrderToPhaseArray,
-    extractPhaseDirs,
-    isOrderIdentical: validatePhases,
+    extractPhaseDirs: fetchAllDirNames,
     prepareCommand,
     run
 };

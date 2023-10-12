@@ -18,12 +18,6 @@ inputs:
     description: Order in which to execute the playbooks (comma-separated list of folder names).
     required: true
 
-  exclude_dirs:
-    description: |
-      A comma-separated list of directories which are in the playbook directory
-      but should be excluded from execution as they do not represent phases
-    required: false
-
   requirements:
     description: JSON string mapping playbook names to galaxy requirement
     required: false
