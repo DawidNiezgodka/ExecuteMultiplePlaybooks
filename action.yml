@@ -2,23 +2,27 @@ name: "Run multiple Ansible playbooks"
 description: "Run Ansible playbooks in phase that represent setup order"
 
 inputs:
-  ## Required
   ansible_directory:
     description: Directory where Ansible files are located.
-    required: true
+    required: false
+    default: "ansible"
 
   playbook_directory:
     description: | 
       Directory where playbook subfolders are located.
       Assumes that playbooks are located in the dir pointed to by ansible_directory.
-    required: true
+    required: false
     default: "playbooks"
 
   execution_order:
     description: Order in which to execute the playbooks (comma-separated list of folder names).
     required: true
 
-## Optional
+  exclude_dirs:
+    description: |
+      A comma-separated list of directories which are in the playbook directory
+      but should be excluded from execution as they do not represent phases
+    required: false
 
   requirements:
     description: JSON string mapping playbook names to galaxy requirement
@@ -38,7 +42,7 @@ inputs:
     description: Content of the known hosts. If not provided, the host key checking is disabled.
     required: false
 
-  extra_options:
+  extra_options_string:
     description: |
       A multi-line string of extra options to pass to ansible-playbooks.
       Please provide the options in the following way:
@@ -48,16 +52,21 @@ inputs:
        group name <<all>>
     required: false
 
+  extra_options_file:
+    description: |
+      A path to a file containing extra options to pass to ansible-playbooks.
+      The path should be relative to the repository root.
+
+  secrets:
+    description: |
+      A JSON string mapping secret names to their values.
+      The secret names should be the same as the ones used in the playbooks.
+    required: false
+
   sudo:
     description: Whether to use sudo for executing commands
     required: false
     default: 'false'
-
-  exclude_dirs:
-    description: |
-      A comma-separated list of directories which are in the playbook directory
-      but should be excluded from execution as they do not represent phases
-    required: false
 
 outputs:
   results:

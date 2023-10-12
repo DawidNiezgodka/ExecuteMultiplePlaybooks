@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - exclude_dirs
+      - extra-options-from-file
 
 
 jobs:
@@ -36,18 +36,17 @@ jobs:
       - name: test
         uses: ./
         with:
-          ansible_directory: ./ansibletest
-          playbook_directory: playbooks
+          ansible_directory: ansibletest
           private_key: ${{secrets.PK}}
           execution_order: setup,check_extra_opt, check_roles
-          requirements: requirements.yml
+          #requirements: requirements.yml
           exclude_dirs: dir_to_exclude
-          extra_options: |
+          secrets: ${{ toJson(secrets) }}
+          extra_options_string: |
               <<all>>
               --extra-vars file_name=from_all.txt
               <<check_extra_opt>>
-              --extra-vars file_content=info_from_check_extra_opt
+              --extra-vars "file_content='info from check_extra_opt'"
               <<setup>>
               <<check_roles>>
               --extra-vars zks=localhost
-            

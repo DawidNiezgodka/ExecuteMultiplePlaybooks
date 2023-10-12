@@ -5,6 +5,7 @@ const fss = require('fs');
 const path = require('path');
 const os = require('os');
 const yaml = require('yaml')
+const jsyaml = require('js-yaml');
 
 // The logic for running a single playbook is based on
 // the idea presented in dawidd6/action-ansible-playbook
@@ -12,8 +13,8 @@ const yaml = require('yaml')
 async function run() {
   try {
     // Read required inputs
-    const ansible_dir = core.getInput('ansible_directory', { required: true });
-    const playbookDir = core.getInput('playbook_directory', { required: true });
+    const ansibleDir = core.getInput('ansible_directory');
+    const playbookDir = core.getInput('playbook_directory');
     // The execution order is a comma-separated list of phase names
     // In the context of this action, the provided execution order
     // is later called "phase order" (after converting the comma-separated list to an array)
@@ -26,15 +27,20 @@ async function run() {
     const inventory = core.getInput('inventory_file_path');
     const knownHosts = core.getInput('known_hosts');
     const sudo = core.getInput('sudo');
-    const extraOptions = core.getInput('extra_options');
+    const extraOptionsString = core.getInput('extra_options_string');
+    const extraOptionsFile = core.getInput('extra_options_file');
     const excludeDirs = core.getInput('exclude_dirs');
+    const secretsStr = core.getInput('secrets');
+    const secrets = JSON.parse(secretsStr);
 
     // Change the current working directory to the ansible directory
-    if (path.resolve(ansible_dir) !== path.resolve(process.cwd())) {
-      console.log(`Changing directory to ${ansible_dir}`)
-      process.chdir(ansible_dir);
-      core.saveState("ansible_directory", ansible_dir);
+    if (path.resolve(ansibleDir) !== path.resolve(process.cwd())) {
+      console.log(`Changing directory to ${ansibleDir}`)
+      process.chdir(ansibleDir);
+      core.saveState("ansible_directory", ansibleDir);
     }
+
+    console.log("PWD: " + process.cwd());
 
     // Install the requirements if the requirements file is provided
     if (requirements) {
@@ -58,18 +64,24 @@ async function run() {
         return;
     }
 
-    // Process the multiline input parameter that contains additional options
-    // for each phase's playbook.
-    // The result of the processing is a data structure that maps each phase name
-    // to a list of additional options.
-    // Example: "setup" -> ["-private-key abc.key"]
-    const phaseNameToExtraOptions = parseExtraOptions(extraOptions);
+    // Process the multiline input string and the file with additional options
+    // to create a data structure that maps each phase name to a list of additional options
+    let allExtraOptions = fetchExtraOptions(extraOptionsString, extraOptionsFile);
+    // Replace escaped characters with actual values
+    // TODO: Add a flag `withCustomEscapeChars` to the action's inputs
+    // If false, skip the replacement of escaped characters
+
+    // Check if allExtraOptions is not empty and not null
+    if (allExtraOptions && allExtraOptions.size > 0) {
+      console.log("Replacing escaped literals in extra options")
+      allExtraOptions = replaceCustomEscapedLiteralsInMap(allExtraOptions, secrets);
+    }
 
     // The main logic of the action - executing multiple playbooks
     // according to the provided execution order
     // and with the provided options
     const results = await executeMultiplePlaybooks(phaseOrder, playbookDir, privateKey,
-        inventory, knownHosts, sudo, phaseNameToExtraOptions);
+        inventory, knownHosts, sudo, allExtraOptions);
     core.setOutput('results', JSON.stringify(results));
 
   }
@@ -117,6 +129,10 @@ async function extractPhaseDirs(mainDirPath, exclude_dirs) {
     excludeDirsArray = exclude_dirs.split(',').map(dir => dir.trim());
   }
 
+  console.log("Main dir path: " + mainDirPath);
+  // Print current working dir
+  console.log("Current working dir: " + process.cwd());
+
   let commaSeparated = excludeDirsArray.join(", ");
   console.log("Dir names to exclude: " + commaSeparated);
 
@@ -163,6 +179,138 @@ function validatePhases(providedPhaseOrder, phaseSubDirs) {
   return true;
 }
 
+function fetchExtraOptions(extraOptionsString, extraOptionsFile) {
+  if (!extraOptionsString && !extraOptionsFile) {
+    console.log("No extra options provided")
+    return new Map(); // Return an empty map
+  }
+  let processedExtraOptionsString;
+  let processedExtraOptionsFile;
+
+  // Process the multiline input parameter that contains additional options
+  // for each phase's playbook.
+  // The result of the processing is a data structure that maps each phase name
+  // to a list of additional options.
+  // Example: "setup" -> ["-private-key abc.key"]
+  if (extraOptionsString) {
+    processedExtraOptionsString = parseExtraOptionsString(extraOptionsString);
+  }
+
+  if (extraOptionsFile) {
+    processedExtraOptionsFile = parseExtraOptionsFile(extraOptionsFile);
+  }
+  return mergeMaps(processedExtraOptionsString, processedExtraOptionsFile);
+}
+
+/**
+ * Parses the multiline input parameter that contains additional options
+ * @param extraOptions the multiline input parameter (string) that contains additional options
+ * @returns {Map<any, any>} a data structure that maps each phase name to a list of additional options
+ */
+function parseExtraOptionsString(extraOptions) {
+  const groupPattern = /<<(.+)>>\n([^<]+)/g;
+  let groupNameToCommands = new Map();
+  let match;
+
+  while ((match = groupPattern.exec(extraOptions)) !== null) {
+    let groupName = match[1];
+    let commands = match[2].trim().split('\n');
+    groupNameToCommands.set(groupName, commands);
+  }
+
+  return groupNameToCommands;
+}
+
+function parseExtraOptionsFile(yamlFilePath) {
+  console.log("Parsing extra options file: " + yamlFilePath);
+  const fileContents = fss.readFileSync(yamlFilePath, 'utf8');
+  const yamlData = jsyaml.load(fileContents);
+
+  let groupNameToCommands = new Map();
+
+  for (let groupName in yamlData) {
+    // eslint-disable-next-line no-prototype-builtins
+    if (yamlData.hasOwnProperty(groupName)) {
+      const commands = yamlData[groupName].options || [];
+      groupNameToCommands.set(groupName, commands);
+    }
+    // Provide info about the number of parsed options for a given group
+    console.log(`Parsed ${groupNameToCommands.get(groupName).length} options for group ${groupName}`);
+  }
+
+  return groupNameToCommands;
+}
+
+function mergeMaps(map1, map2) {
+  if (!map1) {
+      return map2;
+  }
+  if (!map2) {
+      return map1;
+  }
+  let mergedMap = new Map();
+  // Iterate over entries of the first map
+  map1.forEach((value, key) => {
+    if (map2.has(key)) {
+      // If the key exists in both maps, merge the values and remove duplicates
+      let mergedArray = [...new Set([...value, ...map2.get(key)])];
+      mergedMap.set(key, mergedArray);
+    } else {
+      // If the key exists only in map1, add it to mergedMap
+      mergedMap.set(key, value);
+    }
+  });
+
+  map2.forEach((value, key) => {
+    if (!map1.has(key)) {
+      mergedMap.set(key, value);
+    }
+  });
+
+  return mergedMap;
+}
+
+/**
+ * Replace custom escaped strings in a command map with respective values from env or secrets.
+ *
+ * @param {Object} commandMap - The input map with phase names and arrays of commands.
+ * @param {Object} secrets - An object containing the secrets, if any.
+ * @returns {Object} - The transformed map.
+ */
+function replaceCustomEscapedLiteralsInMap(commandMap, secrets = {}) {
+  const regex = /%\[\[\s*(env|secrets)\.(\w+)\s*]]/g;
+
+  const transformedMap = new Map();
+
+  commandMap.forEach((commands, phase) => {
+    const transformedCommands = [];
+
+    for (let i = 0; i < commands.length; i++) {
+      let command = commands[i];
+
+      let match;
+      while ((match = regex.exec(command)) !== null) {
+        const type = match[1];
+        const key = match[2];
+
+        if (type === "env") {
+          command = command.replace(match[0], process.env[key] || match[0]);
+        } else if (type === "secrets") {
+          command = command.replace(match[0], secrets[key] || match[0]);
+        }
+      }
+
+      transformedCommands.push(command);
+    }
+
+    transformedMap.set(phase, transformedCommands);
+  });
+
+  return transformedMap;
+}
+
+
+
 /**
  * Executes a number of playbooks according to the provided phase order.
  * @param phaseOrder the order in which the playbooks should be executed
@@ -204,24 +352,6 @@ async function executeMultiplePlaybooks(phaseOrder, playbookDir,
   return results;
 }
 
-/**
- * Parses the multiline input parameter that contains additional options
- * @param extraOptions the multiline input parameter (string) that contains additional options
- * @returns {Map<any, any>} a data structure that maps each phase name to a list of additional options
- */
-function parseExtraOptions(extraOptions) {
-  const groupPattern = /<<(.+)>>\n([^<]+)/g;
-  let groupNameToCommands = new Map();
-  let match;
-
-  while ((match = groupPattern.exec(extraOptions)) !== null) {
-    let groupName = match[1];
-    let commands = match[2].trim().split('\n');
-    groupNameToCommands.set(groupName, commands);
-  }
-
-  return groupNameToCommands;
-}
 
 /**
  * ...
@@ -256,9 +386,12 @@ function prepareCommand(playbook, privateKey, inventory, knownHosts, sudo,
     process.env.ANSIBLE_HOST_KEY_CHECKING = "False"
   }
 
-  appendExtraOptionsForGivenPhase(commandComponents, phaseNameToExtraOptions, phase);
-  appendExtraOptionForWhichApplyToAllPhases(commandComponents, phaseNameToExtraOptions);
-
+  // check if phaseNameToExtraOptions is not empty and not null
+  if (phaseNameToExtraOptions && phaseNameToExtraOptions.size > 0) {
+    console.log(`Appending extra options for phase ${phase}`)
+    appendExtraOptionsForGivenPhase(commandComponents, phaseNameToExtraOptions, phase);
+    appendExtraOptionForWhichApplyToAllPhases(commandComponents, phaseNameToExtraOptions);
+  }
 
   //  adds the elements "sudo", "-E", "env", and PATH=${process.env.PATH}
   //  to the front of the array,
@@ -294,7 +427,7 @@ function appendExtraOptionForWhichApplyToAllPhases(commandComponents, phaseNameT
 function handleOptionalFile(inputFile, outputFileName, flagName, commandComponents) {
   if (inputFile) {
     const file = `.${outputFileName}`;
-    fss.writeFileSync(file, file + os.EOL, { mode: 0o600 });
+    fss.writeFileSync(file, file + os.EOL, { mode: 0o600});
     core.saveState(outputFileName, file);
     commandComponents.push(`--${flagName}`);
     commandComponents.push(file);
