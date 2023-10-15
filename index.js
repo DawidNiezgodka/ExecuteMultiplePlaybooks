@@ -14,7 +14,9 @@ async function run() {
   try {
     // Read required inputs
     const ansibleDir = core.getInput('ansible_directory');
+    core.debug("Ansible dir is: " + ansibleDir);
     const playbookDir = core.getInput('playbook_directory');
+    core.debug("Playbook dir is: " + playbookDir);
     // The execution order is a comma-separated list of phase names
     // In the context of this action, the provided execution order
     // is later called "phase order" (after converting the comma-separated list to an array)
@@ -106,12 +108,18 @@ async function handleRequirements(requirements) {
   const requirementsObject = yaml.parse(requirementsContent)
 
   if (Array.isArray(requirementsObject)) {
+    core.debug("Installing requirements from a list");
     await exec.exec("ansible-galaxy", ["install", "-r", requirements])
   } else {
-    if (requirementsObject.roles)
+    if (requirementsObject.roles) {
+      core.debug("Installing requirements from a roles section");
       await exec.exec("ansible-galaxy", ["role", "install", "-r", requirements])
-    if (requirementsObject.collections)
+    }
+    if (requirementsObject.collections) {
+        core.debug("Installing requirements from a collections section");
       await exec.exec("ansible-galaxy", ["collection", "install", "-r", requirements])
+    }
+
   }
 }
 
