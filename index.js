@@ -43,7 +43,6 @@ async function run() {
 
     console.log("PWD: " + process.cwd());
 
-    // Install the requirements if the requirements file is provided
     if (requirements) {
       await handleRequirements(requirements);
     }
@@ -104,6 +103,7 @@ async function run() {
  * @returns {Promise<void>} a promise
  */
 async function handleRequirements(requirements) {
+  core.info(`Installing requirements from ${requirements}`)
   const requirementsContent = fss.readFileSync(requirements, 'utf8')
   const requirementsObject = yaml.parse(requirementsContent)
 
