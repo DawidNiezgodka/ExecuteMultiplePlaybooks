@@ -35,3 +35,6 @@ What is relevant is that the names of the subfolders match the names of the phas
 
 - Runs multiple Ansible playbooks in a specific order
 - Verifies that there is a match between the order named in the `execution_order` and the names of the subfolders in the `playbooks` folder
+
+## Credits
+The idea of how to run a single Ansible playbook was based on the following action: https://github.com/dawidd6/action-ansible-playbook
